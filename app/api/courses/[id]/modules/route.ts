@@ -71,13 +71,15 @@ export async function POST(
       moduleOrder = maxOrder + 1;
     }
 
-    // Check if order already exists
+    // If provided order already exists, shift subsequent modules' orders up by 1
     const existingModule = course.modules.find(m => m.order === moduleOrder);
     if (existingModule) {
-      return NextResponse.json(
-        { success: false, error: `Module with order ${moduleOrder} already exists` },
-        { status: 400 }
-      );
+      // Increment order for modules with order >= moduleOrder
+      course.modules.forEach(m => {
+        if ((m.order || 0) >= moduleOrder) {
+          m.order = (m.order || 0) + 1;
+        }
+      });
     }
 
     // Create new module
@@ -89,6 +91,8 @@ export async function POST(
 
     // Add module to course
     course.modules.push(newModule);
+  // Ensure module ordering is consistent
+  course.modules.sort((a, b) => (a.order || 0) - (b.order || 0));
     course.updatedAt = new Date();
     
     await course.save();
