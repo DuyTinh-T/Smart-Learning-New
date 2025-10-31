@@ -86,7 +86,7 @@ export async function POST(
       lessonOrder = maxOrder + 1;
     }
 
-    // Check if order already exists in this module
+    // Check if order already exists in this module. If so, shift orders for existing lessons
     const existingLesson = await Lesson.findOne({
       _id: { $in: module.lessons },
       order: lessonOrder,
@@ -94,9 +94,10 @@ export async function POST(
     });
 
     if (existingLesson) {
-      return NextResponse.json(
-        { success: false, error: `Lesson with order ${lessonOrder} already exists in this module` },
-        { status: 400 }
+      // Shift all lessons in this module with order >= lessonOrder by +1
+      await Lesson.updateMany(
+        { _id: { $in: module.lessons }, order: { $gte: lessonOrder }, isActive: true },
+        { $inc: { order: 1 } }
       );
     }
 
