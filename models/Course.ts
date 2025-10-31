@@ -171,7 +171,7 @@ CourseSchema.statics.findPublicCourses = function(): Promise<ICourse[]> {
 
 // Virtual for total lessons count
 CourseSchema.virtual('totalLessons').get(function(this: ICourse) {
-  return this.modules.reduce((total, module) => total + module.lessons.length, 0);
+  return this.modules ? this.modules.reduce((total, module) => total + module.lessons.length, 0) : 0;
 });
 
 // Virtual for average rating display

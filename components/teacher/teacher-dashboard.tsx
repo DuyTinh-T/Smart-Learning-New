@@ -9,6 +9,7 @@ import { motion } from "framer-motion"
 import Link from "next/link"
 import { CreateCourseDialog } from "@/components/teacher/create-course-dialog"
 import { CreateQuizDialog } from "@/components/teacher/create-quiz-dialog"
+import { CourseManagement } from "@/components/teacher/course-management"
 
 const teacherCourses = [
   {
@@ -158,82 +159,7 @@ export function TeacherDashboard() {
         </TabsList>
 
         <TabsContent value="courses" className="space-y-4">
-          {teacherCourses.map((course, index) => (
-            <motion.div
-              key={course.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-            >
-              <Card className="overflow-hidden transition-all hover:shadow-lg">
-                <div className="md:flex">
-                  <div className="md:w-64 h-48 md:h-auto relative overflow-hidden">
-                    <img
-                      src={course.thumbnail || "/placeholder.svg"}
-                      alt={course.title}
-                      className="w-full h-full object-cover"
-                    />
-                    <Badge
-                      className={`absolute top-4 right-4 ${
-                        course.status === "Published"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {course.status}
-                    </Badge>
-                  </div>
-                  <div className="flex-1 p-6">
-                    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                      <div className="flex-1">
-                        <h3 className="text-xl font-bold mb-3">{course.title}</h3>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                          <div>
-                            <p className="text-sm text-muted-foreground">Students</p>
-                            <p className="text-lg font-semibold">{course.students.toLocaleString()}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">Rating</p>
-                            <p className="text-lg font-semibold">{course.rating > 0 ? course.rating : "N/A"}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">Revenue</p>
-                            <p className="text-lg font-semibold">${course.revenue.toLocaleString()}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">Content</p>
-                            <p className="text-lg font-semibold">
-                              {course.modules}M / {course.lessons}L
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/teacher/courses/${course.id}/edit`}>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit
-                          </Link>
-                        </Button>
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/courses/${course.id}`}>
-                            <Eye className="h-4 w-4 mr-2" />
-                            Preview
-                          </Link>
-                        </Button>
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/teacher/courses/${course.id}/analytics`}>
-                            <BarChart3 className="h-4 w-4 mr-2" />
-                            Stats
-                          </Link>
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            </motion.div>
-          ))}
+          <CourseManagement />
         </TabsContent>
 
         <TabsContent value="students" className="space-y-4">

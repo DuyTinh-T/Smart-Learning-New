@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -11,15 +10,32 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Plus, Upload, X, Loader2 } from "lucide-react"
+import { X, Loader2, Save } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { courseApi, handleApiError, type CreateCourseData } from "@/lib/api/course-api"
+import { courseApi, handleApiError } from "@/lib/api/course-api"
+
+interface Course {
+  _id: string;
+  title: string;
+  description: string;
+  category: string;
+  tags: string[];
+  thumbnail?: string;
+  price: number;
+  visibility: 'public' | 'private';
+}
+
+interface EditCourseDialogProps {
+  course: Course | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess: () => void;
+}
 
 interface FormData {
   title: string;
@@ -31,10 +47,8 @@ interface FormData {
   visibility: 'public' | 'private';
 }
 
-export function CreateCourseDialog() {
-  const [open, setOpen] = useState(false)
+export function EditCourseDialog({ course, open, onOpenChange, onSuccess }: EditCourseDialogProps) {
   const [loading, setLoading] = useState(false)
-  const [modules, setModules] = useState<{ title: string }[]>([])
   const [tagInput, setTagInput] = useState("")
   const { toast } = useToast()
 
@@ -48,6 +62,22 @@ export function CreateCourseDialog() {
     visibility: 'public'
   })
 
+  // Load course data when dialog opens
+  useEffect(() => {
+    if (course && open) {
+      setFormData({
+        title: course.title || '',
+        description: course.description || '',
+        category: course.category || '',
+        tags: course.tags || [],
+        thumbnail: course.thumbnail || '',
+        price: course.price || 0,
+        visibility: course.visibility || 'public'
+      })
+      setTagInput('')
+    }
+  }, [course, open])
+
   const updateFormData = (field: keyof FormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
@@ -55,10 +85,12 @@ export function CreateCourseDialog() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    if (!course) return
+    
     if (!formData.title.trim() || !formData.description.trim() || !formData.category) {
       toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields (title, description, category)",
+        title: "Lỗi xác thực",
+        description: "Vui lòng điền đầy đủ các trường bắt buộc (tiêu đề, mô tả, danh mục)",
         variant: "destructive",
       })
       return
@@ -67,8 +99,8 @@ export function CreateCourseDialog() {
     setLoading(true)
 
     try {
-      // Create course data
-      const courseData: CreateCourseData = {
+      // Update course data
+      const updateData = {
         title: formData.title.trim(),
         description: formData.description.trim(),
         category: formData.category,
@@ -78,75 +110,82 @@ export function CreateCourseDialog() {
         visibility: formData.visibility
       }
 
-      // Create the course
-      const response = await courseApi.create(courseData)
+      // Update the course
+      const response = await courseApi.update(course._id, updateData)
 
       if (!response.success) {
-        throw new Error(handleApiError(response.error, response.details))
-      }
-
-      const courseId = response.data._id
-
-      // Add modules to the course if any
-      if (modules.length > 0) {
-        for (let i = 0; i < modules.length; i++) {
-          const module = modules[i]
-          if (module.title.trim()) {
-            const moduleResponse = await courseApi.addModule(courseId, {
-              title: module.title.trim(),
-              order: i + 1
-            })
-            
-            if (!moduleResponse.success) {
-              console.warn(`Failed to add module "${module.title}":`, moduleResponse.error)
-            }
-          }
+        // Handle specific API error responses
+        const errorMessage = response.error || 'Failed to update course'
+        
+        if (errorMessage.includes('Access denied') || errorMessage.includes('You can only update your own courses')) {
+          toast({
+            title: "Không có quyền truy cập",
+            description: "Bạn chỉ có thể chỉnh sửa các khóa học do mình tạo ra.",
+            variant: "destructive",
+          })
+          setLoading(false)
+          return
+        } else if (errorMessage.includes('Authentication required')) {
+          toast({
+            title: "Yêu cầu đăng nhập",
+            description: "Vui lòng đăng nhập để chỉnh sửa khóa học.",
+            variant: "destructive",
+          })
+          setLoading(false)
+          return
+        } else if (errorMessage.includes('Course not found')) {
+          toast({
+            title: "Không tìm thấy khóa học",
+            description: "Khóa học bạn muốn chỉnh sửa không còn tồn tại.",
+            variant: "destructive",
+          })
+          setLoading(false)
+          return
+        } else {
+          throw new Error(handleApiError(response.error, response.details))
         }
       }
 
       toast({
-        title: "Success!",
-        description: "Course created successfully",
+        title: "Thành công!",
+        description: "Cập nhật khóa học thành công",
       })
 
-      // Reset form and close dialog
-      setFormData({
-        title: '',
-        description: '',
-        category: '',
-        tags: [],
-        thumbnail: '',
-        price: 0,
-        visibility: 'public'
-      })
-      setModules([])
-      setTagInput('')
-      setOpen(false)
+      onSuccess()
+      onOpenChange(false)
 
     } catch (error: any) {
-      console.error('Error creating course:', error)
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create course",
-        variant: "destructive",
-      })
+      console.error('Error updating course:', error)
+      
+      // Check for specific error messages and show appropriate toast
+      if (error.message && error.message.includes('Access denied')) {
+        toast({
+          title: "Không có quyền truy cập",
+          description: "Bạn chỉ có thể chỉnh sửa các khóa học do mình tạo ra.",
+          variant: "destructive",
+        })
+      } else if (error.message && error.message.includes('Authentication required')) {
+        toast({
+          title: "Yêu cầu đăng nhập",
+          description: "Vui lòng đăng nhập để chỉnh sửa khóa học.",
+          variant: "destructive",
+        })
+      } else if (error.message && error.message.includes('Course not found')) {
+        toast({
+          title: "Không tìm thấy khóa học",
+          description: "Khóa học bạn muốn chỉnh sửa không còn tồn tại.",
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Cập nhật thất bại",
+          description: error.message || "Không thể cập nhật khóa học. Vui lòng thử lại.",
+          variant: "destructive",
+        })
+      }
     } finally {
       setLoading(false)
     }
-  }
-
-  const addModule = () => {
-    setModules([...modules, { title: "" }])
-  }
-
-  const removeModule = (index: number) => {
-    setModules(modules.filter((_, i) => i !== index))
-  }
-
-  const updateModule = (index: number, title: string) => {
-    const updated = [...modules]
-    updated[index].title = title
-    setModules(updated)
   }
 
   const addTag = () => {
@@ -160,52 +199,56 @@ export function CreateCourseDialog() {
     updateFormData('tags', formData.tags.filter((_, i) => i !== index))
   }
 
+  const handleClose = () => {
+    if (!loading) {
+      onOpenChange(false)
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="bg-accent text-accent-foreground hover:bg-accent/90">
-          <Plus className="h-4 w-4 mr-2" />
-          Create Course
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Create New Course</DialogTitle>
-            <DialogDescription>Add a new course to your teaching portfolio with detailed information</DialogDescription>
+            <DialogTitle>Edit Course</DialogTitle>
+            <DialogDescription>Update your course information and settings</DialogDescription>
           </DialogHeader>
+          
           <div className="grid gap-6 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="thumbnail">Course Thumbnail (URL)</Label>
+              <Label htmlFor="edit-thumbnail">Course Thumbnail (URL)</Label>
               <Input 
-                id="thumbnail" 
+                id="edit-thumbnail" 
                 placeholder="https://example.com/image.jpg" 
                 value={formData.thumbnail}
                 onChange={(e) => updateFormData('thumbnail', e.target.value)}
+                disabled={loading}
               />
               <span className="text-sm text-muted-foreground">Enter image URL (recommended: 1200x630px)</span>
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="title">Course Title *</Label>
+              <Label htmlFor="edit-title">Course Title *</Label>
               <Input 
-                id="title" 
+                id="edit-title" 
                 placeholder="e.g., Introduction to Python" 
                 required 
                 value={formData.title}
                 onChange={(e) => updateFormData('title', e.target.value)}
+                disabled={loading}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="category">Category *</Label>
+                <Label htmlFor="edit-category">Category *</Label>
                 <select
-                  id="category"
+                  id="edit-category"
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   required
                   value={formData.category}
                   onChange={(e) => updateFormData('category', e.target.value)}
+                  disabled={loading}
                 >
                   <option value="">Select category</option>
                   <option value="programming">Programming</option>
@@ -219,26 +262,28 @@ export function CreateCourseDialog() {
                 </select>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="price">Price ($)</Label>
+                <Label htmlFor="edit-price">Price ($)</Label>
                 <Input 
-                  id="price" 
+                  id="edit-price" 
                   type="number" 
                   placeholder="0" 
                   min="0"
                   step="0.01"
                   value={formData.price}
                   onChange={(e) => updateFormData('price', parseFloat(e.target.value) || 0)}
+                  disabled={loading}
                 />
               </div>
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="visibility">Visibility</Label>
+              <Label htmlFor="edit-visibility">Visibility</Label>
               <select
-                id="visibility"
+                id="edit-visibility"
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 value={formData.visibility}
                 onChange={(e) => updateFormData('visibility', e.target.value as 'public' | 'private')}
+                disabled={loading}
               >
                 <option value="public">Public</option>
                 <option value="private">Private</option>
@@ -246,14 +291,15 @@ export function CreateCourseDialog() {
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="description">Description *</Label>
+              <Label htmlFor="edit-description">Description *</Label>
               <Textarea 
-                id="description" 
+                id="edit-description" 
                 placeholder="Describe what students will learn..." 
                 rows={4} 
                 required 
                 value={formData.description}
                 onChange={(e) => updateFormData('description', e.target.value)}
+                disabled={loading}
               />
             </div>
 
@@ -270,8 +316,9 @@ export function CreateCourseDialog() {
                       addTag()
                     }
                   }}
+                  disabled={loading}
                 />
-                <Button type="button" variant="outline" onClick={addTag}>
+                <Button type="button" variant="outline" onClick={addTag} disabled={loading}>
                   Add
                 </Button>
               </div>
@@ -280,65 +327,40 @@ export function CreateCourseDialog() {
                   {formData.tags.map((tag, index) => (
                     <Badge key={index} variant="secondary" className="gap-1">
                       {tag}
-                      <X className="h-3 w-3 cursor-pointer" onClick={() => removeTag(index)} />
+                      <X 
+                        className="h-3 w-3 cursor-pointer" 
+                        onClick={() => !loading && removeTag(index)} 
+                      />
                     </Badge>
                   ))}
                 </div>
               )}
             </div>
-
-            <div className="grid gap-3">
-              <div className="flex items-center justify-between">
-                <Label>Course Modules (Optional)</Label>
-                <Button type="button" variant="outline" size="sm" onClick={addModule}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Module
-                </Button>
-              </div>
-              {modules.map((module, index) => (
-                <div key={index} className="border rounded-lg p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Module {index + 1}</span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeModule(index)}
-                      className="h-8 w-8 p-0"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <Input
-                    placeholder="Module title"
-                    value={module.title}
-                    onChange={(e) => updateModule(index, e.target.value)}
-                  />
-                </div>
-              ))}
-            </div>
           </div>
+          
           <DialogFooter>
             <Button 
               type="button" 
               variant="outline" 
-              onClick={() => setOpen(false)}
+              onClick={handleClose}
               disabled={loading}
             >
               Cancel
             </Button>
             <Button 
               type="submit" 
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
               disabled={loading}
             >
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating...
+                  Updating...
                 </>
               ) : (
-                'Create Course'
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Update Course
+                </>
               )}
             </Button>
           </DialogFooter>
