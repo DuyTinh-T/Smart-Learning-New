@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -16,9 +16,12 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { FileText, Plus, X, CheckCircle2, Circle } from "lucide-react"
+import { FileText, Plus, X, CheckCircle2, Circle, Loader2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { quizAPI, type CreateQuizData, type QuizQuestion } from "@/lib/api/quiz-api"
+import { courseApi, moduleApi, lessonApi } from "@/lib/api/course-api"
+import { useToast } from "@/hooks/use-toast"
 
 type QuestionType = "multiple-choice" | "essay"
 
@@ -37,17 +40,265 @@ interface EssayQuestion {
 
 type Question = MultipleChoiceQuestion | EssayQuestion
 
+interface Course {
+  _id: string;
+  title: string;
+  modules?: Module[];
+}
+
+interface Module {
+  _id: string;
+  title: string;
+  lessons?: Lesson[];
+}
+
+interface Lesson {
+  _id: string;
+  title: string;
+}
+
 export function CreateQuizDialog() {
   const [open, setOpen] = useState(false)
   const [questions, setQuestions] = useState<Question[]>([])
   const [activeTab, setActiveTab] = useState<QuestionType>("multiple-choice")
+  const [loading, setLoading] = useState(false)
+  const [courses, setCourses] = useState<Course[]>([])
+  const [selectedCourse, setSelectedCourse] = useState("")
+  const [selectedLesson, setSelectedLesson] = useState("")
+  const [lessons, setLessons] = useState<Lesson[]>([])
+  const [loadingLessons, setLoadingLessons] = useState(false)
+  const [quizForm, setQuizForm] = useState({
+    title: "",
+    timeLimit: "",
+    passingScore: "",
+    maxAttempts: ""
+  })
+  
+  const { toast } = useToast()
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    console.log("[v0] Quiz created with questions:", questions)
-    setOpen(false)
-    // Reset form
+  // Load courses when dialog opens
+  useEffect(() => {
+    if (open) {
+      loadCourses()
+    } else {
+      // Reset form when dialog closes
+      resetForm()
+    }
+  }, [open])
+
+  const resetForm = () => {
     setQuestions([])
+    setSelectedCourse("")
+    setSelectedLesson("")
+    setLessons([])
+    setQuizForm({
+      title: "",
+      timeLimit: "",
+      passingScore: "",
+      maxAttempts: ""
+    })
+    setActiveTab("multiple-choice")
+  }
+
+  const loadCourses = async () => {
+    try {
+      const response = await courseApi.getAll({ limit: 100, visibility: 'public' })
+      if (response.success && response.data) {
+        console.log('Loaded courses:', response.data) // Debug log
+        setCourses(response.data)
+      }
+    } catch (error) {
+      console.error('Failed to load courses:', error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load courses. Please try again."
+      })
+    }
+  }
+
+  const loadLessons = async (courseId: string) => {
+    if (!courseId) return
+    
+    setLoadingLessons(true)
+    try {
+      // First get modules for the course (which includes lesson IDs)
+      const modulesResponse = await courseApi.getModules(courseId)
+      console.log('Modules response:', modulesResponse) // Debug log
+      
+      if (modulesResponse.success && modulesResponse.data && modulesResponse.data.modules) {
+        const allLessons: Lesson[] = []
+        
+        // Collect lesson IDs from all modules
+        for (const module of modulesResponse.data.modules) {
+          if (module.lessons && module.lessons.length > 0) {
+            // Each lesson is just an ID string, we need to fetch lesson details
+            for (const lessonId of module.lessons) {
+              try {
+                const lessonResponse = await lessonApi.getById(lessonId)
+                console.log(`Lesson details for ${lessonId}:`, lessonResponse) // Debug log
+                
+                if (lessonResponse.success && lessonResponse.data) {
+                  allLessons.push({
+                    _id: lessonResponse.data._id,
+                    title: lessonResponse.data.title
+                  })
+                }
+              } catch (lessonError) {
+                console.error(`Failed to load lesson ${lessonId}:`, lessonError)
+              }
+            }
+          }
+        }
+        
+        console.log('All lessons loaded:', allLessons) // Debug log
+        setLessons(allLessons)
+      }
+    } catch (error) {
+      console.error('Failed to load lessons:', error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load lessons. Please try again."
+      })
+    } finally {
+      setLoadingLessons(false)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!selectedLesson) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please select a lesson for this quiz."
+      })
+      return
+    }
+
+    if (questions.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Error", 
+        description: "Please add at least one question to the quiz."
+      })
+      return
+    }
+
+    if (!quizForm.title.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please enter a quiz title."
+      })
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      // Validate and convert UI questions to API format
+      const apiQuestions: QuizQuestion[] = [];
+      
+      for (const [index, question] of questions.entries()) {
+        // Check if question text is empty
+        if (!question.question || question.question.trim() === '') {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: `Question ${index + 1} cannot be empty. Please enter a question.`
+          })
+          setLoading(false)
+          return
+        }
+
+        const baseQuestion: QuizQuestion = {
+          text: question.question.trim(),
+          type: question.type,
+          points: 1,
+          difficulty: 'medium'
+        }
+
+        if (question.type === 'multiple-choice') {
+          // Validate multiple choice options
+          const options = question.options && Array.isArray(question.options) ? question.options : [];
+          const validOptions = options.filter(opt => opt && opt.trim() !== '');
+          
+          if (validOptions.length < 2) {
+            toast({
+              variant: "destructive",
+              title: "Error",
+              description: `Multiple choice question ${index + 1} must have at least 2 valid options.`
+            })
+            setLoading(false)
+            return
+          }
+          
+          // Ensure correctIndex is valid
+          if (question.correctAnswer < 0 || question.correctAnswer >= validOptions.length) {
+            toast({
+              variant: "destructive",
+              title: "Error",
+              description: `Please select a correct answer for multiple choice question ${index + 1}.`
+            })
+            setLoading(false)
+            return
+          }
+          
+          apiQuestions.push({
+            ...baseQuestion,
+            options: validOptions,
+            correctIndex: question.correctAnswer
+          })
+        } else {
+          // Validate essay question
+          const maxWords = question.maxWords && question.maxWords > 0 ? question.maxWords : 500;
+          apiQuestions.push({
+            ...baseQuestion,
+            maxWords: maxWords
+          })
+        }
+      }
+
+      const quizData: CreateQuizData = {
+        lessonId: selectedLesson,
+        title: quizForm.title,
+        questions: apiQuestions,
+        timeLimit: quizForm.timeLimit ? parseInt(quizForm.timeLimit) * 60 : undefined, // convert minutes to seconds
+        passingScore: quizForm.passingScore ? parseInt(quizForm.passingScore) : undefined,
+        maxAttempts: quizForm.maxAttempts ? parseInt(quizForm.maxAttempts) : undefined,
+        allowMultipleAttempts: true,
+        showCorrectAnswers: true,
+        shuffleQuestions: false,
+        shuffleOptions: false
+      }
+
+      console.log('Quiz data being sent:', quizData) // Debug log
+      console.log('API questions:', apiQuestions) // Debug log
+
+      const response = await quizAPI.createQuiz(quizData)
+      
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: "Quiz created successfully!"
+        })
+        
+        // Reset form and close dialog
+        setOpen(false)
+      }
+    } catch (error) {
+      console.error('Failed to create quiz:', error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to create quiz. Please try again."
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   const addQuestion = () => {
@@ -132,34 +383,100 @@ export function CreateQuizDialog() {
                 <div className="grid gap-4">
                   <div className="grid gap-2">
                     <Label htmlFor="quiz-title">Quiz Title</Label>
-                    <Input id="quiz-title" placeholder="e.g., Module 1 Assessment" required />
+                    <Input 
+                      id="quiz-title" 
+                      value={quizForm.title}
+                      onChange={(e) => setQuizForm(prev => ({ ...prev, title: e.target.value }))}
+                      placeholder="e.g., Module 1 Assessment" 
+                      required 
+                    />
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="course-select">Select Course</Label>
                     <select
                       id="course-select"
+                      value={selectedCourse}
+                      onChange={(e) => {
+                        const courseId = e.target.value
+                        setSelectedCourse(courseId)
+                        setSelectedLesson("")
+                        setLessons([])
+                        if (courseId) {
+                          loadLessons(courseId)
+                        }
+                      }}
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                       required
                     >
                       <option value="">Choose a course</option>
-                      <option value="1">Introduction to Web Development</option>
-                      <option value="2">Advanced React Patterns</option>
-                      <option value="3">JavaScript Fundamentals</option>
+                      {courses.map((course) => (
+                        <option key={course._id} value={course._id}>
+                          {course.title}
+                        </option>
+                      ))}
                     </select>
                   </div>
+
+                  {selectedCourse && (
+                    <div className="grid gap-2">
+                      <Label htmlFor="lesson-select">Select Lesson</Label>
+                      <select
+                        id="lesson-select"
+                        value={selectedLesson}
+                        onChange={(e) => setSelectedLesson(e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        required
+                        disabled={loadingLessons}
+                      >
+                        <option value="">
+                          {loadingLessons ? "Loading lessons..." : "Choose a lesson"}
+                        </option>
+                        {lessons.map((lesson) => (
+                          <option key={lesson._id} value={lesson._id}>
+                            {lesson.title}
+                          </option>
+                        ))}
+                      </select>
+                      {lessons.length === 0 && !loadingLessons && selectedCourse && (
+                        <p className="text-xs text-muted-foreground text-orange-600">
+                          No lessons found for this course. Please add lessons first.
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-3 gap-4">
                     <div className="grid gap-2">
                       <Label htmlFor="time-limit">Time Limit (min)</Label>
-                      <Input id="time-limit" type="number" placeholder="30" />
+                      <Input 
+                        id="time-limit" 
+                        type="number" 
+                        value={quizForm.timeLimit}
+                        onChange={(e) => setQuizForm(prev => ({ ...prev, timeLimit: e.target.value }))}
+                        placeholder="30" 
+                      />
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="passing-score">Passing Score (%)</Label>
-                      <Input id="passing-score" type="number" placeholder="70" required />
+                      <Input 
+                        id="passing-score" 
+                        type="number" 
+                        value={quizForm.passingScore}
+                        onChange={(e) => setQuizForm(prev => ({ ...prev, passingScore: e.target.value }))}
+                        placeholder="70" 
+                        required 
+                      />
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="attempts">Max Attempts</Label>
-                      <Input id="attempts" type="number" placeholder="3" required />
+                      <Input 
+                        id="attempts" 
+                        type="number" 
+                        value={quizForm.maxAttempts}
+                        onChange={(e) => setQuizForm(prev => ({ ...prev, maxAttempts: e.target.value }))}
+                        placeholder="3" 
+                        required 
+                      />
                     </div>
                   </div>
                 </div>
@@ -389,15 +706,22 @@ export function CreateQuizDialog() {
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
               Cancel
             </Button>
             <Button
               type="submit"
               className="bg-primary text-primary-foreground hover:bg-primary/90"
-              disabled={questions.length === 0}
+              disabled={questions.length === 0 || loading || !selectedLesson || !quizForm.title.trim()}
             >
-              Create Quiz ({questions.length} {questions.length === 1 ? "question" : "questions"})
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>Create Quiz ({questions.length} {questions.length === 1 ? "question" : "questions"})</>
+              )}
             </Button>
           </DialogFooter>
         </form>

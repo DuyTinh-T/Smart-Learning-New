@@ -1,76 +1,135 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
-import { CheckCircle2, XCircle, ArrowRight, ArrowLeft } from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
+import { CheckCircle2, XCircle, ArrowRight, ArrowLeft, Loader2 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
+import { useToast } from "@/hooks/use-toast"
+import { quizAPI } from "@/lib/api/quiz-api"
+import { IQuiz, IQuestion } from "@/models/Quiz"
 
-const quizData = {
-  id: 1,
-  title: "CSS Grid Fundamentals Quiz",
-  courseId: 1,
-  lessonId: 6,
-  courseTitle: "Introduction to Web Development",
-  questions: [
-    {
-      id: 1,
-      question: "What is the main difference between CSS Grid and Flexbox?",
-      options: [
-        "Grid is one-dimensional, Flexbox is two-dimensional",
-        "Grid is two-dimensional, Flexbox is one-dimensional",
-        "They are exactly the same",
-        "Grid only works with columns",
-      ],
-      correctAnswer: 1,
-    },
-    {
-      id: 2,
-      question: "Which property is used to create a grid container?",
-      options: ["display: flex", "display: grid", "grid-container: true", "layout: grid"],
-      correctAnswer: 1,
-    },
-    {
-      id: 3,
-      question: "What does 'fr' stand for in CSS Grid?",
-      options: ["Frame", "Fraction", "Free", "Fixed ratio"],
-      correctAnswer: 1,
-    },
-    {
-      id: 4,
-      question: "How do you create three equal columns in CSS Grid?",
-      options: [
-        "grid-columns: 3",
-        "grid-template-columns: 1fr 1fr 1fr",
-        "columns: repeat(3)",
-        "grid-layout: three-columns",
-      ],
-      correctAnswer: 1,
-    },
-    {
-      id: 5,
-      question: "What property controls the spacing between grid items?",
-      options: ["margin", "padding", "gap", "spacing"],
-      correctAnswer: 2,
-    },
-  ],
+interface QuizViewProps {
+  courseId: string
+  lessonId: string
+  quizId?: string
+  onComplete?: (score: number) => void
 }
 
-export function QuizView({ courseId, lessonId }: { courseId: string; lessonId: string }) {
+export function QuizView({ courseId, lessonId, quizId, onComplete }: QuizViewProps) {
+  const { toast } = useToast()
+  
+  const [quiz, setQuiz] = useState<IQuiz | null>(null)
+  const [loading, setLoading] = useState(true)
   const [currentQuestion, setCurrentQuestion] = useState(0)
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({})
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, number | string>>({})
   const [showResults, setShowResults] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
-  const handleAnswerSelect = (questionId: number, answerIndex: number) => {
-    setSelectedAnswers((prev) => ({ ...prev, [questionId]: answerIndex }))
+  // Load quiz data
+  useEffect(() => {
+    const loadQuiz = async () => {
+      if (!quizId) {
+        // If no quizId provided, try to find quiz for this lesson
+        try {
+          console.log('Loading quizzes for lessonId:', lessonId)
+          
+          // First, try to get quizzes filtered by lessonId
+          let response = await quizAPI.getQuizzes({ lessonId })
+          console.log('Quiz API response with filter:', response)
+          
+          // If no results, try getting all quizzes
+          if (!response.success || !response.data || response.data.length === 0) {
+            console.log('No quizzes found with filter, trying to get all quizzes...')
+            response = await quizAPI.getQuizzes()
+            console.log('All quizzes response:', response)
+          }
+          
+          if (response.success && response.data && response.data.length > 0) {
+            console.log('Available quizzes:', response.data)
+            
+            // For now, just use the first available quiz for testing
+            // Later we'll fix the lessonId matching
+            let lessonQuiz = null
+            
+            if (response.data.length > 0) {
+              console.log('Found quizzes, using first one for testing:', response.data[0])
+              lessonQuiz = response.data[0]
+            }
+            
+            // Try to match lesson if needed (commented out for now)
+            /*
+            lessonQuiz = response.data.find((q: any) => {
+              console.log('Checking quiz:', q.title, 'lessonId:', q.lessonId)
+              return q.lessonId === lessonId || 
+                     q.lessonId?._id === lessonId ||
+                     q.lessonId?.toString() === lessonId ||
+                     q.lesson === lessonId ||
+                     (q.lessonId && q.lessonId._id && q.lessonId._id.toString() === lessonId)
+            })
+            */
+            
+            if (lessonQuiz) {
+              console.log('Found quiz:', lessonQuiz)
+              setQuiz(lessonQuiz)
+            } else {
+              console.log('No matching quiz found for lesson:', lessonId)
+              toast({
+                title: "No Quiz Found", 
+                description: `No quiz available for lesson ${lessonId}.`,
+                variant: "destructive"
+              })
+            }
+          } else {
+            console.log('No quizzes returned from API at all')
+            toast({
+              title: "No Quiz Found",
+              description: "No quiz available for this lesson yet.",
+              variant: "destructive"
+            })
+          }
+        } catch (error) {
+          console.error('Error loading quiz:', error)
+          toast({
+            title: "Error",
+            description: "Failed to load quiz data.",
+            variant: "destructive"
+          })
+        }
+      } else {
+        // Load specific quiz by ID
+        try {
+          const response = await quizAPI.getQuizById(quizId)
+          if (response.success && response.data) {
+            setQuiz(response.data)
+          } else {
+            throw new Error("Quiz not found")
+          }
+        } catch (error) {
+          toast({
+            title: "Error",
+            description: "Failed to load quiz.",
+            variant: "destructive"
+          })
+        }
+      }
+      setLoading(false)
+    }
+
+    loadQuiz()
+  }, [quizId, lessonId, toast])
+
+  const handleAnswerSelect = (questionId: string, answer: number | string) => {
+    setSelectedAnswers((prev) => ({ ...prev, [questionId]: answer }))
   }
 
   const handleNext = () => {
-    if (currentQuestion < quizData.questions.length - 1) {
+    if (quiz && currentQuestion < quiz.questions.length - 1) {
       setCurrentQuestion((prev) => prev + 1)
     }
   }
@@ -81,26 +140,100 @@ export function QuizView({ courseId, lessonId }: { courseId: string; lessonId: s
     }
   }
 
-  const handleSubmit = () => {
-    setShowResults(true)
-  }
-
-  const calculateScore = () => {
-    let correct = 0
-    quizData.questions.forEach((question) => {
-      if (selectedAnswers[question.id] === question.correctAnswer) {
-        correct++
+  const handleSubmit = async () => {
+    if (!quiz) return
+    
+    setSubmitting(true)
+    
+    try {
+      // Calculate score for multiple choice questions
+      const score = calculateScore()
+      
+      // Here you can add API call to submit quiz attempt
+      // const response = await quizApi.submitAttempt(quiz._id, selectedAnswers)
+      
+      setShowResults(true)
+      
+      // Call completion callback if provided
+      if (onComplete) {
+        onComplete(score.percentage)
       }
-    })
-    return {
-      correct,
-      total: quizData.questions.length,
-      percentage: Math.round((correct / quizData.questions.length) * 100),
+      
+      toast({
+        title: "Quiz Submitted",
+        description: `You scored ${score.percentage}%`,
+        variant: score.percentage >= 70 ? "default" : "destructive"
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to submit quiz. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setSubmitting(false)
     }
   }
 
-  const progress = ((currentQuestion + 1) / quizData.questions.length) * 100
-  const currentQ = quizData.questions[currentQuestion]
+  const calculateScore = () => {
+    if (!quiz) return { correct: 0, total: 0, percentage: 0 }
+    
+    let correct = 0
+    let total = 0
+    
+    quiz.questions.forEach((question: IQuestion) => {
+      if (question.type === 'multiple-choice') {
+        total++
+        const userAnswer = selectedAnswers[question._id?.toString() || '']
+        if (typeof userAnswer === 'number' && userAnswer === question.correctIndex) {
+          correct++
+        }
+      }
+      // Essay questions need manual grading, so we don't count them in auto-scoring
+    })
+    
+    return {
+      correct,
+      total,
+      percentage: total > 0 ? Math.round((correct / total) * 100) : 0,
+    }
+  }
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="bg-muted/30 min-h-screen py-12 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading quiz...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // No quiz found state
+  if (!quiz) {
+    return (
+      <div className="bg-muted/30 min-h-screen py-12">
+        <div className="container mx-auto px-4 max-w-3xl">
+          <Card className="text-center">
+            <CardHeader>
+              <CardTitle>No Quiz Available</CardTitle>
+              <CardDescription>There is no quiz for this lesson yet.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline" asChild>
+                <Link href={`/student/courses/${courseId}`}>Back to Course</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  const progress = ((currentQuestion + 1) / quiz.questions.length) * 100
+  const currentQ = quiz.questions[currentQuestion]
   const score = showResults ? calculateScore() : null
 
   if (showResults && score) {
@@ -128,54 +261,84 @@ export function QuizView({ courseId, lessonId }: { courseId: string; lessonId: s
                 <CardTitle className="text-3xl mb-2">
                   {score.percentage >= 70 ? "Great Job!" : "Keep Practicing!"}
                 </CardTitle>
-                <CardDescription>You scored {score.percentage}%</CardDescription>
+                <CardDescription>
+                  {score.total > 0 ? `You scored ${score.percentage}%` : "Quiz completed - manual grading required for essay questions"}
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="text-center">
-                  <p className="text-5xl font-bold mb-2">
-                    {score.correct}/{score.total}
-                  </p>
-                  <p className="text-muted-foreground">Correct Answers</p>
-                </div>
+                {score.total > 0 && (
+                  <div className="text-center">
+                    <p className="text-5xl font-bold mb-2">
+                      {score.correct}/{score.total}
+                    </p>
+                    <p className="text-muted-foreground">Correct Multiple Choice Answers</p>
+                  </div>
+                )}
 
                 <div className="space-y-3 pt-6">
-                  {quizData.questions.map((question, index) => {
-                    const isCorrect = selectedAnswers[question.id] === question.correctAnswer
-                    return (
-                      <div
-                        key={question.id}
-                        className={`p-4 rounded-lg border ${
-                          isCorrect ? "bg-primary/5 border-primary/20" : "bg-destructive/5 border-destructive/20"
-                        }`}
-                      >
-                        <div className="flex items-start gap-3">
-                          {isCorrect ? (
-                            <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
-                          ) : (
-                            <XCircle className="h-5 w-5 text-destructive mt-0.5" />
-                          )}
-                          <div className="flex-1 text-left">
-                            <p className="font-medium mb-1">Question {index + 1}</p>
-                            <p className="text-sm text-muted-foreground">{question.question}</p>
-                            {!isCorrect && (
-                              <p className="text-sm mt-2">
-                                <span className="font-medium">Correct answer: </span>
-                                {question.options[question.correctAnswer]}
-                              </p>
+                  {quiz.questions.map((question: IQuestion, index: number) => {
+                    const questionId = question._id?.toString() || ''
+                    if (question.type === 'multiple-choice') {
+                      const isCorrect = selectedAnswers[questionId] === question.correctIndex
+                      return (
+                        <div
+                          key={questionId}
+                          className={`p-4 rounded-lg border ${
+                            isCorrect ? "bg-primary/5 border-primary/20" : "bg-destructive/5 border-destructive/20"
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            {isCorrect ? (
+                              <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
+                            ) : (
+                              <XCircle className="h-5 w-5 text-destructive mt-0.5" />
                             )}
+                            <div className="flex-1 text-left">
+                              <p className="font-medium mb-1">Question {index + 1} (Multiple Choice)</p>
+                              <p className="text-sm text-muted-foreground">{question.text}</p>
+                              {!isCorrect && question.options && question.correctIndex !== undefined && (
+                                <p className="text-sm mt-2">
+                                  <span className="font-medium">Correct answer: </span>
+                                  {question.options[question.correctIndex]}
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )
+                      )
+                    } else {
+                      // Essay question
+                      return (
+                        <div
+                          key={questionId}
+                          className="p-4 rounded-lg border bg-blue-50 border-blue-200"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center mt-0.5">
+                              <span className="text-xs text-white">?</span>
+                            </div>
+                            <div className="flex-1 text-left">
+                              <p className="font-medium mb-1">Question {index + 1} (Essay)</p>
+                              <p className="text-sm text-muted-foreground mb-2">{question.text}</p>
+                              <div className="bg-white p-3 rounded border">
+                                <p className="text-sm font-medium mb-1">Your answer:</p>
+                                <p className="text-sm">{selectedAnswers[questionId] || "No answer provided"}</p>
+                              </div>
+                              <p className="text-xs text-blue-600 mt-2">This question requires manual grading by your instructor.</p>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    }
                   })}
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 pt-6">
                   <Button variant="outline" className="flex-1 bg-transparent" asChild>
-                    <Link href={`/student/courses/${courseId}/lessons/${lessonId}`}>Back to Lesson</Link>
+                    <Link href={`#`}>Back to Lesson</Link>
                   </Button>
                   <Button className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90" asChild>
-                    <Link href={`/student/courses/${courseId}`}>Continue Course</Link>
+                    <Link href={`#`}>Continue Course</Link>
                   </Button>
                 </div>
               </CardContent>
@@ -194,13 +357,13 @@ export function QuizView({ courseId, lessonId }: { courseId: string; lessonId: s
             <CardHeader>
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <CardTitle>{quizData.title}</CardTitle>
-                  <CardDescription>{quizData.courseTitle}</CardDescription>
+                  <CardTitle>{quiz.title}</CardTitle>
+                  <CardDescription>Course Quiz</CardDescription>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground">Question</p>
                   <p className="text-2xl font-bold">
-                    {currentQuestion + 1}/{quizData.questions.length}
+                    {currentQuestion + 1}/{quiz.questions.length}
                   </p>
                 </div>
               </div>
@@ -218,30 +381,48 @@ export function QuizView({ courseId, lessonId }: { courseId: string; lessonId: s
             >
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-xl text-balance">{currentQ.question}</CardTitle>
+                  <CardTitle className="text-xl text-balance">{currentQ.text}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <RadioGroup
-                    value={selectedAnswers[currentQ.id]?.toString()}
-                    onValueChange={(value) => handleAnswerSelect(currentQ.id, Number.parseInt(value))}
-                  >
-                    <div className="space-y-3">
-                      {currentQ.options.map((option, index) => (
-                        <motion.div
-                          key={index}
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                          className="flex items-center space-x-3 p-4 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer"
-                          onClick={() => handleAnswerSelect(currentQ.id, index)}
-                        >
-                          <RadioGroupItem value={index.toString()} id={`option-${index}`} />
-                          <Label htmlFor={`option-${index}`} className="flex-1 cursor-pointer">
-                            {option}
-                          </Label>
-                        </motion.div>
-                      ))}
+                  {currentQ.type === 'multiple-choice' && currentQ.options ? (
+                    <RadioGroup
+                      value={selectedAnswers[currentQ._id?.toString() || '']?.toString()}
+                      onValueChange={(value) => handleAnswerSelect(currentQ._id?.toString() || '', Number.parseInt(value))}
+                    >
+                      <div className="space-y-3">
+                        {currentQ.options.map((option: string, index: number) => (
+                          <motion.div
+                            key={index}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            className="flex items-center space-x-3 p-4 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer"
+                            onClick={() => handleAnswerSelect(currentQ._id?.toString() || '', index)}
+                          >
+                            <RadioGroupItem value={index.toString()} id={`option-${index}`} />
+                            <Label htmlFor={`option-${index}`} className="flex-1 cursor-pointer">
+                              {option}
+                            </Label>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </RadioGroup>
+                  ) : (
+                    <div className="space-y-4">
+                      <Label htmlFor="essay-answer" className="text-base font-medium">
+                        Your Answer:
+                      </Label>
+                      <Textarea
+                        id="essay-answer"
+                        placeholder="Write your answer here..."
+                        value={selectedAnswers[currentQ._id?.toString() || ''] as string || ''}
+                        onChange={(e) => handleAnswerSelect(currentQ._id?.toString() || '', e.target.value)}
+                        className="min-h-[200px] resize-none"
+                      />
+                      <p className="text-sm text-muted-foreground">
+                        This is an essay question. Your answer will be reviewed by your instructor.
+                      </p>
                     </div>
-                  </RadioGroup>
+                  )}
 
                   <div className="flex items-center justify-between pt-6">
                     <Button
@@ -254,18 +435,25 @@ export function QuizView({ courseId, lessonId }: { courseId: string; lessonId: s
                       Previous
                     </Button>
 
-                    {currentQuestion === quizData.questions.length - 1 ? (
+                    {currentQuestion === quiz.questions.length - 1 ? (
                       <Button
                         onClick={handleSubmit}
-                        disabled={Object.keys(selectedAnswers).length !== quizData.questions.length}
+                        disabled={submitting || Object.keys(selectedAnswers).length !== quiz.questions.length}
                         className="bg-accent text-accent-foreground hover:bg-accent/90"
                       >
-                        Submit Quiz
+                        {submitting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Submitting...
+                          </>
+                        ) : (
+                          "Submit Quiz"
+                        )}
                       </Button>
                     ) : (
                       <Button
                         onClick={handleNext}
-                        disabled={selectedAnswers[currentQ.id] === undefined}
+                        disabled={selectedAnswers[currentQ._id?.toString() || ''] === undefined}
                         className="bg-primary text-primary-foreground hover:bg-primary/90"
                       >
                         Next

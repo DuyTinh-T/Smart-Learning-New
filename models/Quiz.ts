@@ -1,15 +1,31 @@
 import mongoose, { Document, Schema, Model } from 'mongoose';
 
-// Interface cho Question subdocument
-export interface IQuestion {
+// Base interface for questions
+export interface IBaseQuestion {
   text: string;
-  options: string[];
-  correctIndex: number;
-  explanation?: string;
+  type: 'multiple-choice' | 'essay';
   points: number;
   difficulty: 'easy' | 'medium' | 'hard';
+  explanation?: string;
   _id?: mongoose.Types.ObjectId;
 }
+
+// Interface for Multiple Choice Question
+export interface IMultipleChoiceQuestion extends IBaseQuestion {
+  type: 'multiple-choice';
+  options: string[];
+  correctIndex: number;
+}
+
+// Interface for Essay Question
+export interface IEssayQuestion extends IBaseQuestion {
+  type: 'essay';
+  maxWords: number;
+  rubric?: string;
+}
+
+// Union type for all question types
+export type IQuestion = IMultipleChoiceQuestion | IEssayQuestion;
 
 // Interface cho Quiz document
 export interface IQuiz extends Document {
@@ -36,7 +52,7 @@ interface IQuizModel extends Model<IQuiz> {
   findActiveQuizzes(): Promise<IQuiz[]>;
 }
 
-// Schema cho Question subdocument
+// Schema for Question subdocument - supports both multiple choice and essay
 const QuestionSchema = new Schema<IQuestion>({
   text: {
     type: String,
@@ -44,24 +60,13 @@ const QuestionSchema = new Schema<IQuestion>({
     trim: true,
     maxlength: [1000, 'Question text cannot be more than 1000 characters']
   },
-  options: {
-    type: [String],
-    required: [true, 'Question options are required'],
-    validate: {
-      validator: function(options: string[]) {
-        return options.length >= 2 && options.length <= 6;
-      },
-      message: 'Question must have between 2 and 6 options'
-    }
-  },
-  correctIndex: {
-    type: Number,
-    required: [true, 'Correct answer index is required'],
-    min: [0, 'Correct index cannot be negative']
-  },
-  explanation: {
+  type: {
     type: String,
-    maxlength: [500, 'Explanation cannot be more than 500 characters']
+    enum: {
+      values: ['multiple-choice', 'essay'],
+      message: 'Question type must be multiple-choice or essay'
+    },
+    required: [true, 'Question type is required']
   },
   points: {
     type: Number,
@@ -76,6 +81,30 @@ const QuestionSchema = new Schema<IQuestion>({
       message: 'Difficulty must be easy, medium, or hard'
     },
     default: 'medium'
+  },
+  explanation: {
+    type: String,
+    maxlength: [500, 'Explanation cannot be more than 500 characters']
+  },
+  // Multiple choice specific fields
+  options: {
+    type: [String],
+    default: undefined
+  },
+  correctIndex: {
+    type: Number,
+    default: undefined
+  },
+  // Essay specific fields
+  maxWords: {
+    type: Number,
+    default: undefined,
+    min: [1, 'Max words must be at least 1'],
+    max: [5000, 'Max words cannot exceed 5000']
+  },
+  rubric: {
+    type: String,
+    maxlength: [1000, 'Rubric cannot be more than 1000 characters']
   }
 });
 
@@ -100,6 +129,9 @@ const QuizSchema = new Schema<IQuiz>({
     required: [true, 'Quiz must have at least one question'],
     validate: {
       validator: function(questions: IQuestion[]) {
+        if (!questions || !Array.isArray(questions)) {
+          return false;
+        }
         return questions.length >= 1 && questions.length <= 50;
       },
       message: 'Quiz must have between 1 and 50 questions'
@@ -162,10 +194,25 @@ QuizSchema.index({ createdBy: 1 });
 QuizSchema.index({ isActive: 1 });
 QuizSchema.index({ createdAt: -1 });
 
-// Validate correctIndex against options length
+// Custom validation for question types
 QuestionSchema.pre('validate', function() {
-  if (this.correctIndex >= this.options.length) {
-    throw new Error('Correct index must be less than the number of options');
+  const question = this as any;
+  
+  if (question.type === 'multiple-choice') {
+    // Ensure options exists and is an array
+    if (!question.options || !Array.isArray(question.options) || question.options.length < 2) {
+      throw new Error('Multiple choice questions must have at least 2 options');
+    }
+    // Check correctIndex with safe array access
+    if (question.correctIndex === undefined || question.correctIndex < 0 || question.correctIndex >= question.options.length) {
+      throw new Error('Multiple choice questions must have a valid correct answer index');
+    }
+  }
+  
+  if (question.type === 'essay') {
+    if (!question.maxWords || question.maxWords <= 0) {
+      throw new Error('Essay questions must have a positive max word count');
+    }
   }
 });
 
@@ -187,16 +234,25 @@ QuizSchema.statics.findActiveQuizzes = function(): Promise<IQuiz[]> {
 
 // Virtual for total points
 QuizSchema.virtual('totalPoints').get(function(this: IQuiz) {
+  if (!this.questions || !Array.isArray(this.questions)) {
+    return 0;
+  }
   return this.questions.reduce((total, question) => total + question.points, 0);
 });
 
 // Virtual for question count
 QuizSchema.virtual('questionCount').get(function(this: IQuiz) {
+  if (!this.questions || !Array.isArray(this.questions)) {
+    return 0;
+  }
   return this.questions.length;
 });
 
 // Virtual for estimated completion time
 QuizSchema.virtual('estimatedTime').get(function(this: IQuiz) {
+  if (!this.questions || !Array.isArray(this.questions)) {
+    return this.timeLimit || 300; // 5 minutes default
+  }
   // Rough estimate: 1 minute per question + reading time
   const baseTime = this.questions.length * 60; // 1 minute per question in seconds
   return this.timeLimit || baseTime;

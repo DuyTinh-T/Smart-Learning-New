@@ -21,6 +21,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { courseApi } from "@/lib/api/course-api"
 import { useAuth } from "@/lib/auth-context"
+import { QuizView } from "@/components/quiz/quiz-view"
 
 interface Course {
   _id: string;
@@ -205,14 +206,17 @@ export function StudentCourseView({ courseId, onBack }: StudentCourseViewProps) 
           )}
           
           {selectedLesson.type === 'quiz' && (
-            <div className="bg-blue-50 p-8 rounded-lg text-center mb-6">
-              <PenTool className="h-16 w-16 mx-auto mb-4 opacity-50" />
-              <p className="text-muted-foreground">
-                Interactive quiz would be displayed here
-              </p>
-              <p className="text-sm text-muted-foreground mt-2">
-                (Quiz component sẽ được thêm vào sau)
-              </p>
+            <div>
+              <QuizView 
+                courseId={courseId} 
+                lessonId={selectedLesson._id}
+                onComplete={(score: number) => {
+                  // Mark lesson as completed if score is passing (≥70%)
+                  if (score >= 70) {
+                    setCompletedLessons(prev => new Set([...prev, selectedLesson._id]))
+                  }
+                }}
+              />
             </div>
           )}
 
