@@ -154,6 +154,9 @@ LessonSchema.virtual('estimatedReadingTime').get(function(this: ILesson) {
 
 // Virtual for resource count
 LessonSchema.virtual('resourceCount').get(function(this: ILesson) {
+  if (!this.resources || !Array.isArray(this.resources)) {
+    return 0;
+  }
   return this.resources.length;
 });
 

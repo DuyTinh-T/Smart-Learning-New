@@ -10,9 +10,9 @@ import { Toaster } from "@/components/ui/sonner"
 import { Suspense } from "react"
 
 export const metadata: Metadata = {
-  title: "v0 App",
-  description: "Created with v0",
-  generator: "v0.app",
+  title: "Learning Platform",
+  description: "Learning Platform - Nền tảng học tập thông minh ",
+  generator: "https://smart-learning-new.vercel.app",
 }
 
 export default function RootLayout({
