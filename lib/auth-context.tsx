@@ -99,12 +99,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return response.json()
   }
 
-  // Store token in localStorage and state
+  // Helper functions for cookies
+  const setCookie = (name: string, value: string, days: number = 7) => {
+    const expires = new Date();
+    expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+    document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
+  }
+
+  const getCookie = (name: string): string | null => {
+    const nameEQ = name + "=";
+    const ca = document.cookie.split(';');
+    for (let i = 0; i < ca.length; i++) {
+      let c = ca[i];
+      while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+      if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+    }
+    return null;
+  }
+
+  const removeCookie = (name: string) => {
+    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`;
+  }
+
+  // Store token in localStorage, cookies and state
   const storeAuth = (userData: User, authToken: string) => {
     setUser(userData)
     setToken(authToken)
     localStorage.setItem('auth-token', authToken)
     localStorage.setItem('user-data', JSON.stringify(userData))
+    // Also store in cookies for middleware access
+    setCookie('auth-token', authToken)
   }
 
   // Clear auth data
@@ -113,6 +137,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null)
     localStorage.removeItem('auth-token')
     localStorage.removeItem('user-data')
+    // Also remove from cookies
+    removeCookie('auth-token')
   }
 
   // Check authentication status
@@ -121,10 +147,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(true)
       
       // First check localStorage
-      const storedToken = localStorage.getItem('auth-token')
-      const storedUser = localStorage.getItem('user-data')
+      let storedToken = localStorage.getItem('auth-token')
+      let storedUser = localStorage.getItem('user-data')
 
-      if (!storedToken || !storedUser) {
+      // If localStorage is empty, check cookies (for cases where page was refreshed)
+      if (!storedToken) {
+        storedToken = getCookie('auth-token')
+      }
+
+      if (!storedToken) {
         clearAuth()
         return
       }
@@ -139,8 +170,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(response.data.user)
         setToken(storedToken)
         
-        // Update localStorage with fresh user data
+        // Update localStorage with fresh user data and token
+        localStorage.setItem('auth-token', storedToken)
         localStorage.setItem('user-data', JSON.stringify(response.data.user))
+        // Ensure cookie is also set
+        setCookie('auth-token', storedToken)
       } else {
         clearAuth()
       }
@@ -165,12 +199,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.success) {
         // Check if role matches expected role (if provided)
         if (expectedRole && response.data.user.role !== expectedRole) {
-          toast.error(`Access denied. This account is not registered as ${expectedRole}.`)
-          return
+          const errorMessage = `Access denied. This account is registered as ${response.data.user.role}, not ${expectedRole}.`
+          toast.error(errorMessage)
+          throw new Error(errorMessage)
         }
 
         storeAuth(response.data.user, response.data.token)
         toast.success('Login successful!')
+
+        // Auto-redirect based on user role
+        const userRole = response.data.user.role
+        if (userRole === "admin") {
+          router.push("/admin")
+        } else if (userRole === "teacher") {
+          router.push("/teacher/dashboard")
+        } else {
+          router.push("/student/dashboard")
+        }
       }
     } catch (error: any) {
       console.error('Login failed:', error)
