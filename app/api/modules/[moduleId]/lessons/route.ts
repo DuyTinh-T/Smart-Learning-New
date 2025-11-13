@@ -64,11 +64,19 @@ export async function POST(
     const body = await request.json();
     
     // Validate required fields
-    const { title, type, content, resources, duration, order, difficulty } = body;
+    const { title, type, content, videoUrl, resources, duration, order, difficulty } = body;
     
     if (!title) {
       return NextResponse.json(
         { success: false, error: 'Lesson title is required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate video URL for video lessons
+    if (type === 'video' && !videoUrl) {
+      return NextResponse.json(
+        { success: false, error: 'Video URL is required for video lessons' },
         { status: 400 }
       );
     }
@@ -106,6 +114,7 @@ export async function POST(
       title: title.trim(),
       type: type || 'text',
       content: content || '',
+      videoUrl: type === 'video' ? videoUrl : undefined,
       resources: Array.isArray(resources) ? resources : [],
       duration: duration || undefined,
       courseId: course._id,

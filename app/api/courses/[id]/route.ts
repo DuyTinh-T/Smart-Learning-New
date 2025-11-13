@@ -60,7 +60,7 @@ export async function GET(
             const lessons = await Lesson.find({
               _id: { $in: module.lessons }
             })
-            .select('title type duration order difficulty')
+            .select('title type content videoUrl duration order difficulty resources courseId moduleId')
             .sort({ order: 1 })
             .lean();
             

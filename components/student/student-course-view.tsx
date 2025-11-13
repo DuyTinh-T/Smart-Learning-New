@@ -22,6 +22,7 @@ import { useToast } from "@/hooks/use-toast"
 import { courseApi } from "@/lib/api/course-api"
 import { useAuth } from "@/lib/auth-context"
 import { QuizView } from "@/components/quiz/quiz-view"
+import { ProjectSubmissionView } from "@/components/project/project-submission-view"
 
 interface Course {
   _id: string;
@@ -75,6 +76,7 @@ export function StudentCourseView({ courseId, onBack }: StudentCourseViewProps) 
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null)
   const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set())
   const [isEnrolled, setIsEnrolled] = useState(false)
+  const [lessonProgress, setLessonProgress] = useState<Record<string, boolean>>({}) // Track lesson completion status
 
   // Load course details
   const loadCourse = async () => {
@@ -112,11 +114,117 @@ export function StudentCourseView({ courseId, onBack }: StudentCourseViewProps) 
 
   // Mark lesson as completed
   const markLessonCompleted = (lessonId: string) => {
+    // Check if lesson can be completed based on type
+    if (!canCompleteLesson(lessonId)) {
+      toast({
+        title: "Chưa thể hoàn thành",
+        description: "Vui lòng hoàn thành nội dung bài học trước khi đánh dấu hoàn thành.",
+        variant: "destructive",
+      })
+      return
+    }
+    
     setCompletedLessons(prev => new Set([...prev, lessonId]))
     toast({
       title: "Hoàn thành!",
       description: "Bài học đã được đánh dấu hoàn thành",
     })
+  }
+
+  // Check if a lesson can be completed
+  const canCompleteLesson = (lessonId: string): boolean => {
+    const lesson = findLessonById(lessonId)
+    if (!lesson) return false
+
+    // For quiz lessons, check if quiz was completed with passing score
+    if (lesson.type === 'quiz') {
+      return lessonProgress[lessonId] === true
+    }
+
+    // For video lessons, in a real app you'd check if video was watched completely
+    // For now, allow manual completion but show warning
+    if (lesson.type === 'video') {
+      return true // Will be restricted by video completion later
+    }
+
+    // For text and project lessons, allow manual completion
+    return true
+  }
+
+  // Handle quiz completion
+  const handleQuizCompletion = (lessonId: string, score: number) => {
+    const passingScore = 70
+    if (score >= passingScore) {
+      setLessonProgress(prev => ({ ...prev, [lessonId]: true }))
+      setCompletedLessons(prev => new Set([...prev, lessonId]))
+      toast({
+        title: "Quiz hoàn thành!",
+        description: `Bạn đạt ${score}% - Bài học đã được đánh dấu hoàn thành.`,
+      })
+    } else {
+      setLessonProgress(prev => ({ ...prev, [lessonId]: false }))
+      toast({
+        title: "Chưa đạt điểm",
+        description: `Bạn đạt ${score}%. Cần đạt ít nhất ${passingScore}% để hoàn thành bài học.`,
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Find lesson by ID
+  const findLessonById = (lessonId: string): Lesson | null => {
+    if (!course?.modules) return null
+    
+    for (const module of course.modules) {
+      if (module.lessons) {
+        const lesson = module.lessons.find(l => l._id === lessonId)
+        if (lesson) return lesson
+      }
+    }
+    return null
+  }
+
+  // Get all lessons in order
+  const getAllLessons = (): Lesson[] => {
+    if (!course?.modules) return []
+    
+    const allLessons: Lesson[] = []
+    course.modules.forEach(module => {
+      if (module.lessons) {
+        allLessons.push(...module.lessons)
+      }
+    })
+    return allLessons
+  }
+
+  // Navigate to previous lesson
+  const goToPreviousLesson = () => {
+    const allLessons = getAllLessons()
+    const currentIndex = allLessons.findIndex(lesson => lesson._id === selectedLesson?._id)
+    
+    if (currentIndex > 0) {
+      setSelectedLesson(allLessons[currentIndex - 1])
+    } else {
+      toast({
+        title: "Thông báo",
+        description: "Đây là bài học đầu tiên.",
+      })
+    }
+  }
+
+  // Navigate to next lesson
+  const goToNextLesson = () => {
+    const allLessons = getAllLessons()
+    const currentIndex = allLessons.findIndex(lesson => lesson._id === selectedLesson?._id)
+    
+    if (currentIndex < allLessons.length - 1) {
+      setSelectedLesson(allLessons[currentIndex + 1])
+    } else {
+      toast({
+        title: "Thông báo",
+        description: "Đây là bài học cuối cùng.",
+      })
+    }
   }
 
   // Calculate progress
@@ -133,12 +241,16 @@ export function StudentCourseView({ courseId, onBack }: StudentCourseViewProps) 
     return Math.round((completedCount / totalLessons) * 100)
   }
 
-  const getLessonIcon = (type: string) => {
+  const getLessonIcon = (type: string, lessonId: string) => {
+    const isCompleted = completedLessons.has(lessonId)
+    const baseClasses = "h-4 w-4"
+    const completedClasses = isCompleted ? "text-green-600" : ""
+    
     switch (type) {
-      case 'video': return <Video className="h-4 w-4" />
-      case 'quiz': return <PenTool className="h-4 w-4" />
-      case 'project': return <GraduationCap className="h-4 w-4" />
-      default: return <FileText className="h-4 w-4" />
+      case 'video': return <Video className={`${baseClasses} ${completedClasses}`} />
+      case 'quiz': return <PenTool className={`${baseClasses} ${completedClasses}`} />
+      case 'project': return <GraduationCap className={`${baseClasses} ${completedClasses}`} />
+      default: return <FileText className={`${baseClasses} ${completedClasses}`} />
     }
   }
 
@@ -169,7 +281,7 @@ export function StudentCourseView({ courseId, onBack }: StudentCourseViewProps) 
         {/* Lesson Header */}
         <div className="border-b pb-4">
           <div className="flex items-center gap-3 mb-2">
-            {getLessonIcon(selectedLesson.type)}
+            {getLessonIcon(selectedLesson.type, selectedLesson._id)}
             <h1 className="text-2xl font-bold">{selectedLesson.title}</h1>
           </div>
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -202,6 +314,9 @@ export function StudentCourseView({ courseId, onBack }: StudentCourseViewProps) 
               <p className="text-sm text-muted-foreground mt-2">
                 (Tích hợp video player sẽ được thêm vào sau)
               </p>
+              <p className="text-sm text-blue-600 mt-2">
+                Xem hết video để có thể đánh dấu hoàn thành
+              </p>
             </div>
           )}
           
@@ -211,10 +326,47 @@ export function StudentCourseView({ courseId, onBack }: StudentCourseViewProps) 
                 courseId={courseId} 
                 lessonId={selectedLesson._id}
                 onComplete={(score: number) => {
-                  // Mark lesson as completed if score is passing (≥70%)
-                  if (score >= 70) {
-                    setCompletedLessons(prev => new Set([...prev, selectedLesson._id]))
+                  handleQuizCompletion(selectedLesson._id, score)
+                }}
+                onRetry={() => {
+                  // Reset lesson progress for retry
+                  setLessonProgress(prev => ({ ...prev, [selectedLesson._id]: false }))
+                  toast({
+                    title: "Quiz Reset",
+                    description: "You can now retake the quiz.",
+                  })
+                }}
+                onContinue={() => {
+                  // If quiz passed, go to next lesson, otherwise stay on current lesson
+                  const currentProgress = lessonProgress[selectedLesson._id]
+                  if (currentProgress) {
+                    // Passed - go to next lesson
+                    goToNextLesson()
+                  } else {
+                    // Failed or not completed - show lesson content instead of quiz
+                    toast({
+                      title: "Quiz incomplete",
+                      description: "Review the lesson content before retrying the quiz.",
+                    })
                   }
+                }}
+              />
+            </div>
+          )}
+
+          {selectedLesson.type === 'project' && (
+            <div>
+              <ProjectSubmissionView
+                courseId={courseId}
+                lessonId={selectedLesson._id}
+                projectTitle={selectedLesson.title}
+                projectDescription={selectedLesson.content}
+                onSubmit={(submission) => {
+                  markLessonCompleted(selectedLesson._id)
+                  toast({
+                    title: "Project Submitted!",
+                    description: "Your project has been submitted successfully. Your instructor will review it soon.",
+                  })
                 }}
               />
             </div>
@@ -234,21 +386,38 @@ export function StudentCourseView({ courseId, onBack }: StudentCourseViewProps) 
                 Đã hoàn thành
               </Badge>
             ) : (
-              <Button 
-                onClick={() => markLessonCompleted(selectedLesson._id)}
-                variant="default"
-              >
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Đánh dấu hoàn thành
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button 
+                  onClick={() => markLessonCompleted(selectedLesson._id)}
+                  variant="default"
+                  disabled={!canCompleteLesson(selectedLesson._id)}
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Đánh dấu hoàn thành
+                </Button>
+                {!canCompleteLesson(selectedLesson._id) && (
+                  <span className="text-sm text-muted-foreground">
+                    {selectedLesson.type === 'quiz' && 'Hoàn thành quiz với điểm số ≥70% để đánh dấu hoàn thành bài học'}
+                    {selectedLesson.type === 'video' && 'Xem hết video để có thể đánh dấu hoàn thành'}
+                    {selectedLesson.type === 'project' && 'Hoàn thành project để đánh dấu hoàn thành'}
+                  </span>
+                )}
+              </div>
             )}
           </div>
           
           <div className="flex gap-2">
-            <Button variant="outline">
+            <Button 
+              variant="outline"
+              onClick={goToPreviousLesson}
+              disabled={getAllLessons().findIndex(l => l._id === selectedLesson._id) === 0}
+            >
               Bài trước
             </Button>
-            <Button>
+            <Button
+              onClick={goToNextLesson}
+              disabled={getAllLessons().findIndex(l => l._id === selectedLesson._id) === getAllLessons().length - 1}
+            >
               Bài tiếp theo
               <ChevronRight className="h-4 w-4 ml-2" />
             </Button>
@@ -350,6 +519,7 @@ export function StudentCourseView({ courseId, onBack }: StudentCourseViewProps) 
                               flex items-center gap-2 p-2 rounded cursor-pointer text-sm
                               hover:bg-gray-100 transition-colors
                               ${selectedLesson?._id === lesson._id ? 'bg-blue-50 border border-blue-200' : ''}
+                              ${completedLessons.has(lesson._id) ? 'bg-green-50' : ''}
                             `}
                             onClick={() => setSelectedLesson(lesson)}
                           >
@@ -359,7 +529,7 @@ export function StudentCourseView({ courseId, onBack }: StudentCourseViewProps) 
                               ) : (
                                 <div className="h-4 w-4 rounded-full border-2 border-gray-300" />
                               )}
-                              {getLessonIcon(lesson.type)}
+                              {getLessonIcon(lesson.type, lesson._id)}
                               <span className="flex-1 truncate">
                                 {lessonIndex + 1}. {lesson.title}
                               </span>
