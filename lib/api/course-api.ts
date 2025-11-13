@@ -19,6 +19,7 @@ export interface CreateLessonData {
   title: string;
   type: 'text' | 'video' | 'quiz' | 'project';
   content?: string;
+  videoUrl?: string;
   resources?: string[];
   duration?: number;
   order?: number;

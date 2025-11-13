@@ -39,6 +39,9 @@ import {
 } from "@/components/ui/collapsible"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/lib/auth-context"
+import { QuizView } from "@/components/quiz/quiz-view"
+import { TeacherProjectSubmissions } from "@/components/teacher/teacher-project-submissions"
+import { ProjectSubmissionView } from "@/components/project/project-submission-view"
 
 interface Course {
   _id: string;
@@ -72,6 +75,7 @@ interface Lesson {
   title: string;
   type: 'text' | 'video' | 'quiz' | 'project';
   content?: string;
+  videoUrl?: string;
   resources?: string[];
   duration?: number;
   order: number;
@@ -91,6 +95,27 @@ export function CourseDetailManagement({ courseId, onBack }: CourseDetailManagem
   const [loading, setLoading] = useState(true)
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
   
+  // Preview states
+  const [previewingLesson, setPreviewingLesson] = useState<Lesson | null>(null)
+  const [showPreview, setShowPreview] = useState(false)
+
+  // Helper functions for video URLs
+  const getYouTubeEmbedUrl = (url: string): string => {
+    // Extract video ID from various YouTube URL formats
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/
+    const match = url.match(regExp)
+    const videoId = match && match[2].length === 11 ? match[2] : null
+    return videoId ? `https://www.youtube.com/embed/${videoId}` : url
+  }
+
+  const getVimeoEmbedUrl = (url: string): string => {
+    // Extract video ID from Vimeo URL
+    const regExp = /(?:vimeo)\.com.*(?:videos|video|channels|)\/([\d]+)/i
+    const match = url.match(regExp)
+    const videoId = match ? match[1] : null
+    return videoId ? `https://player.vimeo.com/video/${videoId}` : url
+  }
+  
   // Module dialog states
   const [moduleDialogOpen, setModuleDialogOpen] = useState(false)
   const [editingModule, setEditingModule] = useState<Module | null>(null)
@@ -107,6 +132,7 @@ export function CourseDetailManagement({ courseId, onBack }: CourseDetailManagem
     title: '',
     type: 'text' as 'text' | 'video' | 'quiz' | 'project',
     content: '',
+    videoUrl: '',
     duration: 0,
     difficulty: 'beginner' as 'beginner' | 'intermediate' | 'advanced'
   })
@@ -226,6 +252,7 @@ export function CourseDetailManagement({ courseId, onBack }: CourseDetailManagem
         title: lesson.title,
         type: lesson.type,
         content: lesson.content || '',
+        videoUrl: lesson.videoUrl || '',
         duration: lesson.duration || 0,
         difficulty: lesson.difficulty || 'beginner'
       })
@@ -235,6 +262,7 @@ export function CourseDetailManagement({ courseId, onBack }: CourseDetailManagem
         title: '',
         type: 'text',
         content: '',
+        videoUrl: '',
         duration: 0,
         difficulty: 'beginner'
       })
@@ -247,6 +275,16 @@ export function CourseDetailManagement({ courseId, onBack }: CourseDetailManagem
       toast({
         title: "Lỗi xác thực",
         description: "Vui lòng nhập tiêu đề bài học",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Validate video URL for video lessons
+    if (lessonFormData.type === 'video' && !lessonFormData.videoUrl.trim()) {
+      toast({
+        title: "Lỗi xác thực",
+        description: "Vui lòng nhập URL video",
         variant: "destructive",
       })
       return
@@ -522,6 +560,16 @@ export function CourseDetailManagement({ courseId, onBack }: CourseDetailManagem
                                   <Button
                                     variant="outline"
                                     size="sm"
+                                    onClick={() => {
+                                      setPreviewingLesson(lesson)
+                                      setShowPreview(true)
+                                    }}
+                                  >
+                                    <PlayCircle className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
                                     onClick={() => openLessonDialog(module._id, lesson)}
                                   >
                                     <Edit className="h-4 w-4" />
@@ -575,6 +623,17 @@ export function CourseDetailManagement({ courseId, onBack }: CourseDetailManagem
               )}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Project Submissions Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Project Submissions</CardTitle>
+          <CardDescription>View and grade student project submissions for this course</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TeacherProjectSubmissions courseId={courseId} />
         </CardContent>
       </Card>
 
@@ -699,13 +758,35 @@ export function CourseDetailManagement({ courseId, onBack }: CourseDetailManagem
               />
             </div>
             
+            {lessonFormData.type === 'video' && (
+              <div>
+                <Label htmlFor="lesson-video-url">Video URL *</Label>
+                <Input
+                  id="lesson-video-url"
+                  type="url"
+                  value={lessonFormData.videoUrl}
+                  onChange={(e) => setLessonFormData(prev => ({ ...prev, videoUrl: e.target.value }))}
+                  placeholder="https://www.youtube.com/watch?v=... hoặc https://vimeo.com/..."
+                />
+                <p className="text-sm text-muted-foreground mt-1">
+                  Hỗ trợ YouTube, Vimeo và video URL trực tiếp
+                </p>
+              </div>
+            )}
+            
             <div>
-              <Label htmlFor="lesson-content">Nội dung</Label>
+              <Label htmlFor="lesson-content">
+                {lessonFormData.type === 'video' ? 'Mô tả bài học' : 'Nội dung'}
+              </Label>
               <Textarea
                 id="lesson-content"
                 value={lessonFormData.content}
                 onChange={(e) => setLessonFormData(prev => ({ ...prev, content: e.target.value }))}
-                placeholder="Nội dung chi tiết của bài học..."
+                placeholder={
+                  lessonFormData.type === 'video' 
+                    ? "Mô tả nội dung video, mục tiêu học tập..." 
+                    : "Nội dung chi tiết của bài học..."
+                }
                 rows={6}
               />
             </div>
@@ -717,6 +798,137 @@ export function CourseDetailManagement({ courseId, onBack }: CourseDetailManagem
             </Button>
             <Button onClick={handleLessonSubmit}>
               {editingLesson ? 'Cập Nhật' : 'Tạo Bài Học'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Lesson Preview Dialog */}
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Preview: {previewingLesson?.title}
+            </DialogTitle>
+            <DialogDescription>
+              Teacher preview mode - Test the lesson as students would see it
+            </DialogDescription>
+          </DialogHeader>
+          
+          {previewingLesson && (
+            <div className="space-y-4">
+              {previewingLesson.type === 'quiz' ? (
+                <QuizView
+                  courseId={courseId}
+                  lessonId={previewingLesson._id}
+                  isPreviewMode={true}
+                  onComplete={(score) => {
+                    toast({
+                      title: "Preview Quiz Completed",
+                      description: `Score: ${score}% - This is preview mode, no progress saved.`,
+                    })
+                  }}
+                  onRetry={() => {
+                    toast({
+                      title: "Quiz Reset",
+                      description: "Quiz has been reset for preview.",
+                    })
+                  }}
+                  onContinue={() => {
+                    setShowPreview(false)
+                  }}
+                />
+              ) : (
+                <div className="p-6">
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      {getLessonIcon(previewingLesson.type)}
+                      <h3 className="text-lg font-semibold">{previewingLesson.title}</h3>
+                      <Badge variant="outline">{previewingLesson.type}</Badge>
+                    </div>
+                  </div>
+                  
+                  {previewingLesson.type === 'video' && (
+                    <div className="space-y-4">
+                      {previewingLesson.videoUrl ? (
+                        <div className="relative">
+                          <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                            {/* YouTube embed */}
+                            {previewingLesson.videoUrl.includes('youtube.com') || previewingLesson.videoUrl.includes('youtu.be') ? (
+                              <iframe
+                                src={getYouTubeEmbedUrl(previewingLesson.videoUrl)}
+                                className="w-full h-full"
+                                frameBorder="0"
+                                allowFullScreen
+                                title={previewingLesson.title}
+                              />
+                            ) : previewingLesson.videoUrl.includes('vimeo.com') ? (
+                              <iframe
+                                src={getVimeoEmbedUrl(previewingLesson.videoUrl)}
+                                className="w-full h-full"
+                                frameBorder="0"
+                                allowFullScreen
+                                title={previewingLesson.title}
+                              />
+                            ) : (
+                              <video
+                                src={previewingLesson.videoUrl}
+                                className="w-full h-full"
+                                controls
+                                title={previewingLesson.title}
+                              />
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            Video URL: {previewingLesson.videoUrl}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="bg-gray-100 p-8 rounded-lg text-center">
+                          <Video className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                          <p className="text-muted-foreground">
+                            No video URL provided for this lesson
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {previewingLesson.type === 'project' && (
+                    <div className="space-y-4">
+                      <ProjectSubmissionView
+                        courseId={courseId}
+                        lessonId={previewingLesson._id}
+                        projectTitle={previewingLesson.title}
+                        projectDescription={previewingLesson.content}
+                        isPreviewMode={true}
+                        onSubmit={(submission) => {
+                          toast({
+                            title: "Preview Project Submitted",
+                            description: "This is preview mode - no actual submission saved.",
+                          })
+                        }}
+                      />
+                    </div>
+                  )}
+                  
+                  {(previewingLesson.type === 'text' || previewingLesson.type === 'video') && (
+                    <div className="prose max-w-none">
+                      <div className="whitespace-pre-wrap">
+                        {previewingLesson.content && previewingLesson.content.trim() !== "" 
+                          ? previewingLesson.content 
+                          : "No content available for this lesson."}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPreview(false)}>
+              Close Preview
             </Button>
           </DialogFooter>
         </DialogContent>

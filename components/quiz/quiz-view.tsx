@@ -19,12 +19,17 @@ interface QuizViewProps {
   lessonId: string
   quizId?: string
   onComplete?: (score: number) => void
+  onRetry?: () => void
+  onContinue?: () => void
+  isPreviewMode?: boolean // Add preview mode for teachers
 }
 
-export function QuizView({ courseId, lessonId, quizId, onComplete }: QuizViewProps) {
+export function QuizView({ courseId, lessonId, quizId, onComplete, onRetry, onContinue, isPreviewMode = false }: QuizViewProps) {
   const { toast } = useToast()
   
   const [quiz, setQuiz] = useState<IQuiz | null>(null)
+  const [availableQuizzes, setAvailableQuizzes] = useState<IQuiz[]>([])
+  const [showQuizList, setShowQuizList] = useState(false)
   const [loading, setLoading] = useState(true)
   const [currentQuestion, setCurrentQuestion] = useState(0)
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, number | string>>({})
@@ -39,54 +44,47 @@ export function QuizView({ courseId, lessonId, quizId, onComplete }: QuizViewPro
         try {
           console.log('Loading quizzes for lessonId:', lessonId)
           
-          // First, try to get quizzes filtered by lessonId
-          let response = await quizAPI.getQuizzes({ lessonId })
+          // Try to get quizzes filtered by lessonId
+          const response = await quizAPI.getQuizzes({ lessonId })
           console.log('Quiz API response with filter:', response)
-          
-          // If no results, try getting all quizzes
-          if (!response.success || !response.data || response.data.length === 0) {
-            console.log('No quizzes found with filter, trying to get all quizzes...')
-            response = await quizAPI.getQuizzes()
-            console.log('All quizzes response:', response)
-          }
           
           if (response.success && response.data && response.data.length > 0) {
             console.log('Available quizzes:', response.data)
             
-            // For now, just use the first available quiz for testing
-            // Later we'll fix the lessonId matching
-            let lessonQuiz = null
-            
-            if (response.data.length > 0) {
-              console.log('Found quizzes, using first one for testing:', response.data[0])
-              lessonQuiz = response.data[0]
-            }
-            
-            // Try to match lesson if needed (commented out for now)
-            /*
-            lessonQuiz = response.data.find((q: any) => {
-              console.log('Checking quiz:', q.title, 'lessonId:', q.lessonId)
+            // Filter quizzes that match this lesson exactly
+            const matchingQuizzes = response.data.filter((q: any) => {
+              // Try different ways to match the lesson
               return q.lessonId === lessonId || 
                      q.lessonId?._id === lessonId ||
                      q.lessonId?.toString() === lessonId ||
                      q.lesson === lessonId ||
                      (q.lessonId && q.lessonId._id && q.lessonId._id.toString() === lessonId)
             })
-            */
             
-            if (lessonQuiz) {
-              console.log('Found quiz:', lessonQuiz)
-              setQuiz(lessonQuiz)
+            console.log('Matching quizzes for lesson:', matchingQuizzes)
+            
+            if (matchingQuizzes.length > 0) {
+              // Store matching quizzes
+              setAvailableQuizzes(matchingQuizzes)
+              
+              // If multiple quizzes found, show selection list
+              if (matchingQuizzes.length > 1) {
+                setShowQuizList(true)
+              } else {
+                // If only one quiz, use it directly
+                setQuiz(matchingQuizzes[0])
+              }
             } else {
-              console.log('No matching quiz found for lesson:', lessonId)
+              // No matching quizzes found for this specific lesson
               toast({
                 title: "No Quiz Found", 
-                description: `No quiz available for lesson ${lessonId}.`,
+                description: `No quiz available for this lesson.`,
                 variant: "destructive"
               })
             }
           } else {
-            console.log('No quizzes returned from API at all')
+            // No quizzes returned from API at all for this lesson
+            console.log('No quizzes found for this lesson')
             toast({
               title: "No Quiz Found",
               description: "No quiz available for this lesson yet.",
@@ -175,6 +173,41 @@ export function QuizView({ courseId, lessonId, quizId, onComplete }: QuizViewPro
     }
   }
 
+  const handleQuizSelect = (selectedQuiz: IQuiz) => {
+    setQuiz(selectedQuiz)
+    setShowQuizList(false)
+    // Reset quiz state when switching
+    setCurrentQuestion(0)
+    setSelectedAnswers({})
+    setShowResults(false)
+  }
+
+  const handleRetry = () => {
+    // Reset quiz state
+    setCurrentQuestion(0)
+    setSelectedAnswers({})
+    setShowResults(false)
+    setSubmitting(false)
+    
+    // Call parent retry handler if provided
+    if (onRetry) {
+      onRetry()
+    }
+    
+    toast({
+      title: "Quiz Reset",
+      description: isPreviewMode ? "Quiz reset for testing." : "You can now retake the quiz.",
+    })
+  }
+
+  const handleContinue = () => {
+    // Call parent continue handler if provided
+    if (onContinue) {
+      onContinue()
+    }
+    // If no handler provided, you could navigate back to course
+  }
+
   const calculateScore = () => {
     if (!quiz) return { correct: 0, total: 0, percentage: 0 }
     
@@ -185,7 +218,7 @@ export function QuizView({ courseId, lessonId, quizId, onComplete }: QuizViewPro
       if (question.type === 'multiple-choice') {
         total++
         const userAnswer = selectedAnswers[question._id?.toString() || '']
-        if (typeof userAnswer === 'number' && userAnswer === question.correctIndex) {
+        if (typeof userAnswer === 'number' && 'correctIndex' in question && userAnswer === question.correctIndex) {
           correct++
         }
       }
@@ -197,6 +230,64 @@ export function QuizView({ courseId, lessonId, quizId, onComplete }: QuizViewPro
       total,
       percentage: total > 0 ? Math.round((correct / total) * 100) : 0,
     }
+  }
+
+  // Quiz selection state
+  if (showQuizList && availableQuizzes.length > 1) {
+    return (
+      <div className="bg-muted/30 min-h-screen py-12">
+        <div className="container mx-auto px-4 max-w-3xl">
+          <Card>
+            <CardHeader>
+              <CardTitle>Chọn Quiz</CardTitle>
+              <CardDescription>
+                Có {availableQuizzes.length} quiz có sẵn cho bài học này. Hãy chọn quiz bạn muốn làm.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {availableQuizzes.map((availableQuiz, index) => (
+                <Card 
+                  key={availableQuiz._id?.toString() || index} 
+                  className="cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => handleQuizSelect(availableQuiz)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-medium">{availableQuiz.title}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {availableQuiz.questions?.length || 0} câu hỏi
+                        </p>
+                        {availableQuiz.description && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {availableQuiz.description}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <Button variant="outline" size="sm">
+                          Chọn Quiz
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              
+              <div className="pt-4 border-t">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowQuizList(false)}
+                  className="w-full"
+                >
+                  Quay lại
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
   }
 
   // Loading state
@@ -279,7 +370,7 @@ export function QuizView({ courseId, lessonId, quizId, onComplete }: QuizViewPro
                   {quiz.questions.map((question: IQuestion, index: number) => {
                     const questionId = question._id?.toString() || ''
                     if (question.type === 'multiple-choice') {
-                      const isCorrect = selectedAnswers[questionId] === question.correctIndex
+                      const isCorrect = 'correctIndex' in question && selectedAnswers[questionId] === question.correctIndex
                       return (
                         <div
                           key={questionId}
@@ -296,7 +387,7 @@ export function QuizView({ courseId, lessonId, quizId, onComplete }: QuizViewPro
                             <div className="flex-1 text-left">
                               <p className="font-medium mb-1">Question {index + 1} (Multiple Choice)</p>
                               <p className="text-sm text-muted-foreground">{question.text}</p>
-                              {!isCorrect && question.options && question.correctIndex !== undefined && (
+                              {!isCorrect && ('options' in question) && question.options && question.correctIndex !== undefined && (
                                 <p className="text-sm mt-2">
                                   <span className="font-medium">Correct answer: </span>
                                   {question.options[question.correctIndex]}
@@ -334,12 +425,39 @@ export function QuizView({ courseId, lessonId, quizId, onComplete }: QuizViewPro
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 pt-6">
-                  <Button variant="outline" className="flex-1 bg-transparent" asChild>
-                    <Link href={`#`}>Back to Lesson</Link>
-                  </Button>
-                  <Button className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90" asChild>
-                    <Link href={`#`}>Continue Course</Link>
-                  </Button>
+                  {score.percentage < 70 ? (
+                    <>
+                      <Button 
+                        variant="outline" 
+                        className="flex-1 bg-transparent"
+                        onClick={handleRetry}
+                      >
+                        Try Again
+                      </Button>
+                      <Button 
+                        className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
+                        onClick={handleContinue}
+                      >
+                        Back to Lesson
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button 
+                        variant="outline" 
+                        className="flex-1 bg-transparent"
+                        onClick={handleRetry}
+                      >
+                        Retake Quiz
+                      </Button>
+                      <Button 
+                        className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
+                        onClick={handleContinue}
+                      >
+                        Continue Course
+                      </Button>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -356,15 +474,38 @@ export function QuizView({ courseId, lessonId, quizId, onComplete }: QuizViewPro
           <Card className="mb-6">
             <CardHeader>
               <div className="flex items-center justify-between mb-4">
-                <div>
-                  <CardTitle>{quiz.title}</CardTitle>
-                  <CardDescription>Course Quiz</CardDescription>
+                <div className="flex items-center gap-4">
+                  <div>
+                    <CardTitle>{quiz.title}</CardTitle>
+                    <CardDescription>
+                      {isPreviewMode ? "Quiz Preview (Teacher Mode)" : "Course Quiz"}
+                    </CardDescription>
+                  </div>
+                  {availableQuizzes.length > 1 && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowQuizList(true)}
+                    >
+                      Chọn quiz khác ({availableQuizzes.length})
+                    </Button>
+                  )}
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground">Question</p>
                   <p className="text-2xl font-bold">
                     {currentQuestion + 1}/{quiz.questions.length}
                   </p>
+                  {isPreviewMode && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleRetry}
+                      className="mt-2"
+                    >
+                      Reset Quiz
+                    </Button>
+                  )}
                 </div>
               </div>
               <Progress value={progress} className="h-2" />
@@ -384,13 +525,13 @@ export function QuizView({ courseId, lessonId, quizId, onComplete }: QuizViewPro
                   <CardTitle className="text-xl text-balance">{currentQ.text}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {currentQ.type === 'multiple-choice' && currentQ.options ? (
+                  {currentQ.type === 'multiple-choice' && 'options' in currentQ ? (
                     <RadioGroup
                       value={selectedAnswers[currentQ._id?.toString() || '']?.toString()}
                       onValueChange={(value) => handleAnswerSelect(currentQ._id?.toString() || '', Number.parseInt(value))}
                     >
                       <div className="space-y-3">
-                        {currentQ.options.map((option: string, index: number) => (
+                        {('options' in currentQ) && currentQ.options.map((option: string, index: number) => (
                           <motion.div
                             key={index}
                             whileHover={{ scale: 1.02 }}

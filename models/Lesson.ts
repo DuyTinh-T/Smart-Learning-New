@@ -5,6 +5,7 @@ export interface ILesson extends Document {
   title: string;
   type: 'text' | 'video' | 'quiz' | 'project';
   content?: string;
+  videoUrl?: string;
   resources: string[];
   duration?: number; // minutes
   courseId: mongoose.Types.ObjectId;
@@ -46,6 +47,17 @@ const LessonSchema = new Schema<ILesson>({
   content: {
     type: String,
     maxlength: [50000, 'Content cannot be more than 50000 characters']
+  },
+  videoUrl: {
+    type: String,
+    validate: {
+      validator: function(v: string) {
+        if (!v) return true; // Optional field
+        // Basic URL validation
+        return /^https?:\/\/.+/.test(v);
+      },
+      message: 'Video URL must be a valid URL starting with http or https'
+    }
   },
   resources: {
     type: [String],
