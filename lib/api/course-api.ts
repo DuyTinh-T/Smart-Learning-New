@@ -194,6 +194,28 @@ export const lessonApi = {
   },
 };
 
+// Student API functions
+export const studentApi = {
+  // Get enrolled courses for student
+  getEnrolledCourses: async (params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<ApiResponse<any>> => {
+    const searchParams = new URLSearchParams();
+    
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          searchParams.append(key, value.toString());
+        }
+      });
+    }
+    
+    const queryString = searchParams.toString();
+    return apiCall(`/student/courses${queryString ? `?${queryString}` : ''}`);
+  },
+};
+
 // Utility function to handle API errors
 export const handleApiError = (error: string | undefined, details?: string[]): string => {
   if (details && details.length > 0) {

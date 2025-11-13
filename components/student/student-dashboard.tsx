@@ -1,46 +1,43 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BookOpen, Clock, Award, TrendingUp, Play, CheckCircle2, Sparkles } from "lucide-react"
+import { BookOpen, Clock, Award, TrendingUp, Play, CheckCircle2, Sparkles, Loader2 } from "lucide-react"
 import { motion } from "framer-motion"
 import Link from "next/link"
+import { studentApi } from "@/lib/api/course-api"
+import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/lib/auth-context"
 
-const enrolledCourses = [
-  {
-    id: 1,
-    title: "Introduction to Web Development",
-    progress: 65,
-    totalLessons: 24,
-    completedLessons: 16,
-    nextLesson: "JavaScript Functions",
-    instructor: "Sarah Johnson",
-    thumbnail: "/web-development-coding-on-laptop-screen.jpg",
-  },
-  {
-    id: 2,
-    title: "UI/UX Design Fundamentals",
-    progress: 40,
-    totalLessons: 30,
-    completedLessons: 12,
-    nextLesson: "Color Theory Basics",
-    instructor: "Emily Rodriguez",
-    thumbnail: "/ui-ux-design-wireframes-and-mockups.jpg",
-  },
-  {
-    id: 3,
-    title: "Advanced React Patterns",
-    progress: 20,
-    totalLessons: 18,
-    completedLessons: 4,
-    nextLesson: "Custom Hooks",
-    instructor: "Michael Chen",
-    thumbnail: "/react-javascript-code-on-computer-screen.jpg",
-  },
-]
+interface EnrolledCourse {
+  id: string;
+  title: string;
+  description: string;
+  instructor: string;
+  instructorEmail: string;
+  thumbnail?: string;
+  category: string;
+  tags: string[];
+  price: number;
+  enrollmentCount: number;
+  progress: number;
+  totalLessons: number;
+  completedLessons: number;
+  nextLesson: string;
+  createdAt: string;
+  enrolledAt: string;
+}
+
+interface StudentStats {
+  totalEnrolled: number;
+  averageProgress: number;
+  totalHoursLearned: number;
+  certificatesEarned: number;
+}
 
 const aiRecommendations = [
   {
@@ -61,13 +58,105 @@ const aiRecommendations = [
   },
 ]
 
-const recentActivity = [
-  { id: 1, action: "Completed lesson", course: "Web Development", time: "2 hours ago" },
-  { id: 2, action: "Passed quiz", course: "UI/UX Design", time: "1 day ago" },
-  { id: 3, action: "Started course", course: "Advanced React", time: "3 days ago" },
-]
+// Generate recent activity from enrolled courses
+const generateRecentActivity = (courses: EnrolledCourse[]) => {
+  const activities = []
+  
+  for (const course of courses.slice(0, 3)) {
+    // Generate mock activities based on course progress
+    if (course.progress > 0) {
+      activities.push({
+        id: `activity-${course.id}-1`,
+        action: course.progress === 100 ? "Completed course" : "In progress",
+        course: course.title,
+        time: new Date(course.enrolledAt).toLocaleDateString()
+      })
+    }
+    
+    if (course.completedLessons > 0) {
+      activities.push({
+        id: `activity-${course.id}-2`, 
+        action: `Completed ${course.completedLessons} lessons`,
+        course: course.title,
+        time: "Recently"
+      })
+    }
+  }
+  
+  return activities.slice(0, 3) // Limit to 3 activities
+}
 
 export function StudentDashboard() {
+  const { user } = useAuth()
+  const { toast } = useToast()
+  
+  const [enrolledCourses, setEnrolledCourses] = useState<EnrolledCourse[]>([])
+  const [stats, setStats] = useState<StudentStats>({
+    totalEnrolled: 0,
+    averageProgress: 0,
+    totalHoursLearned: 0,
+    certificatesEarned: 0
+  })
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Load enrolled courses
+  useEffect(() => {
+    const loadEnrolledCourses = async () => {
+      if (!user || user.role !== 'student') {
+        setLoading(false)
+        return
+      }
+
+      try {
+        setLoading(true)
+        setError(null)
+        
+        const response = await studentApi.getEnrolledCourses({ limit: 10 })
+        
+        if (response.success && response.data) {
+          setEnrolledCourses(response.data.courses || [])
+          setStats(response.data.stats || stats)
+        } else {
+          throw new Error(response.error || 'Failed to load courses')
+        }
+      } catch (err: any) {
+        console.error('Error loading enrolled courses:', err)
+        setError(err.message || 'Failed to load courses')
+        toast({
+          title: "Error",
+          description: "Failed to load your courses. Please try again.",
+          variant: "destructive"
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadEnrolledCourses()
+  }, [user, toast])
+
+  if (!user) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-4">Please log in to view your dashboard</h2>
+        </div>
+      </div>
+    )
+  }
+
+  if (user.role !== 'student') {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-4">Student Dashboard</h2>
+          <p className="text-muted-foreground">This dashboard is only available for students.</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       <motion.div
@@ -76,8 +165,25 @@ export function StudentDashboard() {
         transition={{ duration: 0.5 }}
         className="mb-8"
       >
-        <h1 className="text-3xl font-bold mb-2">Welcome back, Student!</h1>
-        <p className="text-muted-foreground">Continue your learning journey</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Welcome back, {user?.name || 'Student'}!</h1>
+            <p className="text-muted-foreground">Continue your learning journey</p>
+          </div>
+          <Button 
+            variant="outline" 
+            onClick={() => window.location.reload()}
+            disabled={loading}
+            className="flex items-center gap-2"
+          >
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <TrendingUp className="h-4 w-4" />
+            )}
+            Refresh
+          </Button>
+        </div>
       </motion.div>
 
       {/* Stats Overview */}
@@ -93,7 +199,9 @@ export function StudentDashboard() {
               <BookOpen className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{enrolledCourses.length}</div>
+              <div className="text-2xl font-bold">
+                {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.totalEnrolled}
+              </div>
               <p className="text-xs text-muted-foreground">Active learning paths</p>
             </CardContent>
           </Card>
@@ -110,7 +218,9 @@ export function StudentDashboard() {
               <Clock className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">42.5</div>
+              <div className="text-2xl font-bold">
+                {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.totalHoursLearned}
+              </div>
               <p className="text-xs text-muted-foreground">This month</p>
             </CardContent>
           </Card>
@@ -127,7 +237,9 @@ export function StudentDashboard() {
               <Award className="h-4 w-4 text-accent" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">5</div>
+              <div className="text-2xl font-bold">
+                {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.certificatesEarned}
+              </div>
               <p className="text-xs text-muted-foreground">Earned so far</p>
             </CardContent>
           </Card>
@@ -144,7 +256,9 @@ export function StudentDashboard() {
               <TrendingUp className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">42%</div>
+              <div className="text-2xl font-bold">
+                {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : `${stats.averageProgress}%`}
+              </div>
               <p className="text-xs text-muted-foreground">Across all courses</p>
             </CardContent>
           </Card>
@@ -162,7 +276,40 @@ export function StudentDashboard() {
         </TabsList>
 
         <TabsContent value="courses" className="space-y-4">
-          {enrolledCourses.map((course, index) => (
+          {loading ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-6 w-6 animate-spin" />
+                <span>Loading your courses...</span>
+              </div>
+            </div>
+          ) : error ? (
+            <Card>
+              <CardContent className="text-center py-12">
+                <p className="text-muted-foreground mb-4">Failed to load courses</p>
+                <Button 
+                  variant="outline" 
+                  onClick={() => window.location.reload()}
+                >
+                  Try Again
+                </Button>
+              </CardContent>
+            </Card>
+          ) : enrolledCourses.length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-12">
+                <BookOpen className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+                <h3 className="text-lg font-semibold mb-2">No Courses Enrolled</h3>
+                <p className="text-muted-foreground mb-4">
+                  Start your learning journey by enrolling in your first course!
+                </p>
+                <Button asChild>
+                  <Link href="/courses">Browse Courses</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            enrolledCourses.map((course: EnrolledCourse, index: number) => (
             <motion.div
               key={course.id}
               initial={{ opacity: 0, x: -20 }}
@@ -213,7 +360,8 @@ export function StudentDashboard() {
                 </div>
               </Card>
             </motion.div>
-          ))}
+          ))
+          )}
         </TabsContent>
 
         <TabsContent value="recommendations" className="space-y-4">
@@ -283,26 +431,40 @@ export function StudentDashboard() {
               <CardDescription>Your latest learning milestones</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {recentActivity.map((activity, index) => (
-                  <motion.div
-                    key={activity.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.5, delay: index * 0.1 }}
-                    className="flex items-start gap-4 pb-4 border-b last:border-0 last:pb-0"
-                  >
-                    <div className="rounded-full bg-primary/10 p-2">
-                      <CheckCircle2 className="h-4 w-4 text-primary" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium">{activity.action}</p>
-                      <p className="text-sm text-muted-foreground">{activity.course}</p>
-                    </div>
-                    <span className="text-xs text-muted-foreground">{activity.time}</span>
-                  </motion.div>
-                ))}
-              </div>
+              {loading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                </div>
+              ) : generateRecentActivity(enrolledCourses).length === 0 ? (
+                <div className="text-center py-8">
+                  <CheckCircle2 className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+                  <h3 className="font-semibold mb-2">No Recent Activity</h3>
+                  <p className="text-muted-foreground text-sm">
+                    Start learning to see your progress here
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {generateRecentActivity(enrolledCourses).map((activity: any, index: number) => (
+                    <motion.div
+                      key={activity.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.5, delay: index * 0.1 }}
+                      className="flex items-start gap-4 pb-4 border-b last:border-0 last:pb-0"
+                    >
+                      <div className="rounded-full bg-primary/10 p-2">
+                        <CheckCircle2 className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium">{activity.action}</p>
+                        <p className="text-sm text-muted-foreground">{activity.course}</p>
+                      </div>
+                      <span className="text-xs text-muted-foreground">{activity.time}</span>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

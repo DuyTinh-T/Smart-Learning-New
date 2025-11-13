@@ -1,4 +1,4 @@
-import { LessonView } from "@/components/course/lesson-view"
+import LessonView from "@/components/course/lesson-view"
 import { Header } from "@/components/header"
 import { RoleGuard } from "@/components/auth/role-guard"
 

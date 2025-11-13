@@ -1,4 +1,4 @@
-import { CourseDetail } from "@/components/course/course-detail"
+import CourseDetail from "@/components/course/course-detail"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 

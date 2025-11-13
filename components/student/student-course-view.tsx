@@ -56,6 +56,7 @@ interface Lesson {
   title: string;
   type: 'text' | 'video' | 'quiz' | 'project';
   content?: string;
+  videoUrl?: string;
   resources?: string[];
   duration?: number;
   order: number;
@@ -70,6 +71,19 @@ interface StudentCourseViewProps {
 export function StudentCourseView({ courseId, onBack }: StudentCourseViewProps) {
   const { user } = useAuth()
   const { toast } = useToast()
+
+  // Helper functions for video URLs
+  const getYouTubeEmbedUrl = (url: string): string => {
+    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/
+    const match = url.match(regex)
+    return match ? `https://www.youtube.com/embed/${match[1]}` : url
+  }
+
+  const getVimeoEmbedUrl = (url: string): string => {
+    const regex = /vimeo\.com\/(\d+)/
+    const match = url.match(regex)
+    return match ? `https://player.vimeo.com/video/${match[1]}` : url
+  }
   
   const [course, setCourse] = useState<Course | null>(null)
   const [loading, setLoading] = useState(true)
@@ -306,17 +320,53 @@ export function StudentCourseView({ courseId, onBack }: StudentCourseViewProps) 
         {/* Lesson Content */}
         <div className="prose max-w-none">
           {selectedLesson.type === 'video' && (
-            <div className="bg-gray-100 p-8 rounded-lg text-center mb-6">
-              <Video className="h-16 w-16 mx-auto mb-4 opacity-50" />
-              <p className="text-muted-foreground">
-                Video content would be displayed here
-              </p>
-              <p className="text-sm text-muted-foreground mt-2">
-                (Tích hợp video player sẽ được thêm vào sau)
-              </p>
-              <p className="text-sm text-blue-600 mt-2">
-                Xem hết video để có thể đánh dấu hoàn thành
-              </p>
+            <div className="space-y-4 mb-6">
+              {selectedLesson.videoUrl ? (
+                <div className="relative">
+                  <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                    {/* YouTube embed */}
+                    {(selectedLesson.videoUrl.includes('youtube.com') || selectedLesson.videoUrl.includes('youtu.be')) ? (
+                      <iframe
+                        src={getYouTubeEmbedUrl(selectedLesson.videoUrl)}
+                        className="w-full h-full"
+                        frameBorder="0"
+                        allowFullScreen
+                        title={selectedLesson.title}
+                      />
+                    ) : selectedLesson.videoUrl.includes('vimeo.com') ? (
+                      <iframe
+                        src={getVimeoEmbedUrl(selectedLesson.videoUrl)}
+                        className="w-full h-full"
+                        frameBorder="0"
+                        allowFullScreen
+                        title={selectedLesson.title}
+                      />
+                    ) : (
+                      <video
+                        src={selectedLesson.videoUrl}
+                        className="w-full h-full"
+                        controls
+                        title={selectedLesson.title}
+                      />
+                    )}
+                  </div>
+                  <div className="mt-2 p-3 bg-blue-50 rounded-lg">
+                    <p className="text-sm text-blue-800 font-medium">
+                      📺 Xem hết video để có thể đánh dấu hoàn thành bài học
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-gray-100 p-8 rounded-lg text-center">
+                  <Video className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                  <p className="text-muted-foreground">
+                    Chưa có video cho bài học này
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Giảng viên chưa upload video nội dung
+                  </p>
+                </div>
+              )}
             </div>
           )}
           
