@@ -9,6 +9,7 @@ export { default as AIRecommendation, type IAIRecommendation, type IRecommendati
 export { default as Notification, type INotification } from './Notification';
 export { default as ProjectSubmission, type IProjectSubmission } from './ProjectSubmission';
 export { Enrollment, type IEnrollment } from './Enrollment';
+export { default as Payment, type IPayment } from './Payment';
 
 // Export database connection
 export { default as connectDB } from '../lib/mongodb';
