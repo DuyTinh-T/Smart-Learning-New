@@ -8,6 +8,7 @@ export { default as Progress, type IProgress } from './Progress';
 export { default as AIRecommendation, type IAIRecommendation, type IRecommendation } from './AIRecommendation';
 export { default as Notification, type INotification } from './Notification';
 export { default as ProjectSubmission, type IProjectSubmission } from './ProjectSubmission';
+export { Enrollment, type IEnrollment } from './Enrollment';
 
 // Export database connection
 export { default as connectDB } from '../lib/mongodb';

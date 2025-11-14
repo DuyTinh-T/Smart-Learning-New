@@ -1,18 +1,169 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { ChevronLeft, ChevronRight, CheckCircle2, FileText } from "lucide-react"
+import { ChevronLeft, ChevronRight, CheckCircle2, FileText, Play, Loader2, AlertCircle } from "lucide-react"
 import { motion } from "framer-motion"
 import Link from "next/link"
+
+// Interfaces
+interface LessonViewProps {
+  courseId: string
+  lessonId: string
+}
+
+interface LessonData {
+  id: string
+  title: string
+  type: 'text' | 'video' | 'quiz' | 'project'
+  content?: string
+  videoUrl?: string
+  duration?: number
+  courseId: string
+  courseTitle?: string
+  moduleTitle?: string
+  completed: boolean
+  progress?: number
+  previousLesson?: { id: string; title: string }
+  nextLesson?: { id: string; title: string }
+  hasQuiz?: boolean
+  resources?: string[]
+}
+
+// Video Player Component
+const VideoPlayer = ({ videoUrl, title }: { videoUrl?: string; title: string }) => {
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(false)
+
+  const getVideoEmbedUrl = (url: string): string | null => {
+    if (!url) return null
+    
+    // YouTube URL handling
+    const youtubeMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
+    if (youtubeMatch) {
+      return `https://www.youtube.com/embed/${youtubeMatch[1]}`
+    }
+    
+    // Vimeo URL handling
+    const vimeoMatch = url.match(/vimeo\.com\/(\d+)/)
+    if (vimeoMatch) {
+      return `https://player.vimeo.com/video/${vimeoMatch[1]}`
+    }
+    
+    // Direct video file (mp4, webm, etc.)
+    if (url.match(/\.(mp4|webm|ogg)$/i)) {
+      return url
+    }
+    
+    // Return original URL if it's already an embed URL
+    if (url.includes('embed')) {
+      return url
+    }
+    
+    return null
+  }
+
+  const embedUrl = videoUrl ? getVideoEmbedUrl(videoUrl) : null
+
+  if (!videoUrl) {
+    return (
+      <div className="aspect-video bg-gradient-to-br from-primary/20 to-secondary/20 rounded-lg mb-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
+            <FileText className="h-8 w-8 text-primary" />
+          </div>
+          <p className="text-muted-foreground">Text-based lesson content</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!embedUrl) {
+    return (
+      <div className="aspect-video bg-destructive/10 rounded-lg mb-6 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+          <p className="text-destructive">Invalid video URL format</p>
+          <p className="text-sm text-muted-foreground mt-2">Supported: YouTube, Vimeo, direct video files</p>
+        </div>
+      </div>
+    )
+  }
+
+  // For direct video files
+  if (embedUrl.match(/\.(mp4|webm|ogg)$/i)) {
+    return (
+      <div className="aspect-video bg-black rounded-lg mb-6 overflow-hidden">
+        <video
+          controls
+          className="w-full h-full"
+          poster="/placeholder.svg"
+          onLoadStart={() => setIsLoading(true)}
+          onCanPlay={() => setIsLoading(false)}
+          onError={() => {
+            setError(true)
+            setIsLoading(false)
+          }}
+        >
+          <source src={embedUrl} type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+            <Loader2 className="h-8 w-8 animate-spin text-white" />
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // For embedded videos (YouTube, Vimeo)
+  return (
+    <div className="aspect-video bg-black rounded-lg mb-6 overflow-hidden relative">
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
+          <Loader2 className="h-8 w-8 animate-spin text-white" />
+        </div>
+      )}
+      {error ? (
+        <div className="absolute inset-0 flex items-center justify-center bg-destructive/10">
+          <div className="text-center">
+            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+            <p className="text-destructive">Failed to load video</p>
+          </div>
+        </div>
+      ) : (
+        <iframe
+          src={embedUrl}
+          title={title}
+          className="w-full h-full"
+          frameBorder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          onLoad={() => setIsLoading(false)}
+          onError={() => {
+            setError(true)
+            setIsLoading(false)
+          }}
+        />
+      )}
+    </div>
+  )
+}
 
 const lessonData = {
   id: 6,
   title: "CSS Grid",
+  type: "video" as const,
   courseId: 1,
   courseTitle: "Introduction to Web Development",
   moduleTitle: "Styling with CSS",
+  // Example video URLs for testing - replace with real lesson data
+  videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", // Example YouTube URL
+  // videoUrl: "https://player.vimeo.com/video/123456789", // Example Vimeo embed
+  // videoUrl: "/videos/lesson-6.mp4", // Example direct video file
   content: `
     <h2>Understanding CSS Grid</h2>
     <p>CSS Grid is a powerful layout system that allows you to create complex, responsive layouts with ease. Unlike Flexbox, which is one-dimensional, Grid is two-dimensional, meaning you can control both rows and columns simultaneously.</p>
@@ -49,7 +200,84 @@ const lessonData = {
   ],
 }
 
-export function LessonView({ courseId, lessonId }: { courseId: string; lessonId: string }) {
+export default function LessonView({ courseId, lessonId }: LessonViewProps) {
+  const [lessonData, setLessonData] = useState<LessonData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const loadLessonData = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        
+        const response = await fetch(`/api/lessons/${lessonId}`)
+        const data = await response.json()
+        
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Failed to load lesson')
+        }
+        
+        // Transform API response to component structure
+        const lesson: LessonData = {
+          id: data.data._id || data.data.id,
+          title: data.data.title,
+          type: data.data.type || 'text',
+          content: data.data.content,
+          videoUrl: data.data.videoUrl,
+          duration: data.data.duration,
+          courseId: data.data.courseId?._id || data.data.courseId,
+          courseTitle: data.data.courseId?.title,
+          moduleTitle: 'Module', // Will be enhanced later
+          completed: false, // Will be determined by user progress
+          progress: 0,
+          resources: data.data.resources || [],
+          // Navigation will be implemented later
+          previousLesson: undefined,
+          nextLesson: undefined,
+          hasQuiz: false
+        }
+        
+        setLessonData(lesson)
+      } catch (err) {
+        console.error('Failed to load lesson:', err)
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load lesson'
+        setError(errorMessage)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (lessonId) {
+      loadLessonData()
+    }
+  }, [lessonId])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-lg">Loading lesson...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !lessonData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <AlertCircle className="h-16 w-16 text-destructive mx-auto" />
+          <h2 className="text-2xl font-bold">Lesson Not Found</h2>
+          <p className="text-muted-foreground">{error || "The lesson you're looking for doesn't exist."}</p>
+          <Button asChild>
+            <Link href={`/student/courses/${courseId}`}>Back to Course</Link>
+          </Button>
+        </div>
+      </div>
+    )
+  }
   return (
     <div className="bg-muted/30 min-h-screen">
       <div className="container mx-auto px-4 py-8">
@@ -78,18 +306,34 @@ export function LessonView({ courseId, lessonId }: { courseId: string; lessonId:
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {/* Video Player Placeholder */}
-                  <div className="aspect-video bg-gradient-to-br from-primary/20 to-secondary/20 rounded-lg mb-6 flex items-center justify-center">
-                    <div className="text-center">
-                      <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
-                        <div className="w-0 h-0 border-t-8 border-t-transparent border-l-12 border-l-primary border-b-8 border-b-transparent ml-1" />
+                  {/* Video Player for video lessons */}
+                  {lessonData.type === "video" && (
+                    <VideoPlayer 
+                      videoUrl={lessonData.videoUrl} 
+                      title={lessonData.title}
+                    />
+                  )}
+
+                  {/* Content placeholder for non-video lessons */}
+                  {lessonData.type !== "video" && (
+                    <div className="aspect-video bg-gradient-to-br from-primary/10 to-secondary/10 rounded-lg mb-6 flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
+                          <FileText className="h-8 w-8 text-primary" />
+                        </div>
+                        <p className="text-muted-foreground">
+                          {lessonData.type === "text" && "Text Lesson"}
+                          {lessonData.type === "quiz" && "Quiz Lesson"}
+                          {lessonData.type === "project" && "Project Lesson"}
+                        </p>
                       </div>
-                      <p className="text-muted-foreground">Video Player</p>
                     </div>
-                  </div>
+                  )}
 
                   {/* Lesson Content */}
-                  <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: lessonData.content }} />
+                  {lessonData.content && (
+                    <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: lessonData.content }} />
+                  )}
 
                   {/* Navigation */}
                   <div className="flex items-center justify-between mt-8 pt-6 border-t">
@@ -173,6 +417,7 @@ export function LessonView({ courseId, lessonId }: { courseId: string; lessonId:
               </Card>
             </motion.div>
 
+            {/* Resources Section */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -180,20 +425,22 @@ export function LessonView({ courseId, lessonId }: { courseId: string; lessonId:
             >
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Recommended Next</CardTitle>
-                  <CardDescription>Continue your learning journey</CardDescription>
+                  <CardTitle className="text-lg">Lesson Resources</CardTitle>
+                  <CardDescription>Additional materials for this lesson</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {lessonData.recommendedNext.map((lesson) => (
-                    <Link
-                      key={lesson.id}
-                      href={`/student/courses/${courseId}/lessons/${lesson.id}`}
-                      className="block p-3 rounded-lg border hover:bg-muted/50 transition-colors"
-                    >
-                      <p className="font-medium text-sm mb-1">{lesson.title}</p>
-                      <p className="text-xs text-muted-foreground">{lesson.module}</p>
-                    </Link>
-                  ))}
+                  {lessonData.resources && lessonData.resources.length > 0 ? (
+                    lessonData.resources.map((resource, index) => (
+                      <div
+                        key={index}
+                        className="block p-3 rounded-lg border"
+                      >
+                        <p className="font-medium text-sm">{resource}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No additional resources for this lesson.</p>
+                  )}
                 </CardContent>
               </Card>
             </motion.div>

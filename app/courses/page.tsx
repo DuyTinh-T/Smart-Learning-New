@@ -1,14 +1,13 @@
-import CourseDetail from "@/components/course/course-detail"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
+import CourseBrowser from "@/components/course/course-browser"
 
-export default async function CourseDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
+export default function CoursesPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1">
-        <CourseDetail courseId={id} />
+        <CourseBrowser />
       </main>
       <Footer />
     </div>
