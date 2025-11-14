@@ -80,8 +80,35 @@ export const requireRole = (allowedRoles: string[]) => {
         error: `Access denied. Required roles: ${allowedRoles.join(', ')}` 
       };
     }
+
     return { authorized: true, error: null };
   };
+};
+
+// Helper for API route authentication
+export const verifyAuth = async (request: NextRequest): Promise<{ success: boolean; userId?: string; user?: IUser; error?: string }> => {
+  try {
+    const authResult = await authenticate(request);
+    
+    if (authResult.error || !authResult.user) {
+      return { 
+        success: false, 
+        error: authResult.error || 'Authentication failed' 
+      };
+    }
+    
+    return { 
+      success: true, 
+      userId: (authResult.user._id as any).toString(),
+      user: authResult.user 
+    };
+  } catch (error) {
+    console.error('Auth verification error:', error);
+    return { 
+      success: false, 
+      error: 'Authentication verification failed' 
+    };
+  }
 };
 
 // Helper function to set secure cookie

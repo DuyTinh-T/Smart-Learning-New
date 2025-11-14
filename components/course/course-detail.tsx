@@ -12,6 +12,7 @@ import Link from "next/link"
 import { courseApi, enrollmentApi } from "@/lib/api/course-api"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
+import { PurchaseCourseButton, PaymentStatus, PaymentResult, usePaymentStatus } from "@/components/payment"
 
 interface CourseDetailProps {
   courseId: string
@@ -111,79 +112,79 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
     }
   }
 
-  useEffect(() => {
-    const loadCourseData = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        
-        const response = await courseApi.getById(courseId)
-        if (!response.success || !response.data) {
-          throw new Error(response.error || 'Course not found')
-        }
-        
-        // Check enrollment status for students
-        let isEnrolled = false
-        let userProgress = 0
-        
-        if (user?.role === 'student') {
-          try {
-            const enrollmentResponse = await enrollmentApi.checkEnrollment(courseId)
-            if (enrollmentResponse.success && enrollmentResponse.data) {
-              isEnrolled = true
-              userProgress = enrollmentResponse.data.progress?.percentage || 0
-            }
-          } catch (enrollmentError) {
-            console.warn('Could not check enrollment status:', enrollmentError)
-          }
-        }
-        
-        // Transform API response to our component structure
-        const course: CourseData = {
-          id: response.data._id || response.data.id,
-          title: response.data.title || 'Untitled Course',
-          description: response.data.description || 'No description available',
-          instructor: response.data.instructor || 'Unknown Instructor',
-          thumbnail: response.data.thumbnail,
-          duration: response.data.duration,
-          level: response.data.level || 'Beginner',
-          rating: response.data.rating || 0,
-          reviews: response.data.reviews || 0,
-          students: response.data.students || 0,
-          price: response.data.price || 0,
-          enrolled: isEnrolled,
-          progress: userProgress,
-          modules: response.data.modules?.map((module: any, index: number) => ({
-            id: module._id || module.id || `module-${index}`,
-            title: module.title || `Module ${index + 1}`,
-            order: module.order || index,
-            lessons: module.lessons?.map((lesson: any, lessonIndex: number) => ({
-              id: lesson._id || lesson.id || `lesson-${lessonIndex}`,
-              title: lesson.title || `Lesson ${lessonIndex + 1}`,
-              type: lesson.type || 'video',
-              duration: lesson.duration || '10 min',
-              completed: false, // User progress would determine this
-              locked: lessonIndex > 0 && !isEnrolled, // Lock lessons for non-enrolled users
-              order: lesson.order || lessonIndex
-            })) || []
-          })) || []
-        }
-        
-        setCourseData(course)
-      } catch (err) {
-        console.error('Failed to load course:', err)
-        const errorMessage = err instanceof Error ? err.message : 'Failed to load course'
-        setError(errorMessage)
-        toast({
-          title: "Error",
-          description: errorMessage,
-          variant: "destructive"
-        })
-      } finally {
-        setLoading(false)
+  const loadCourseData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const response = await courseApi.getById(courseId)
+      if (!response.success || !response.data) {
+        throw new Error(response.error || 'Course not found')
       }
+      
+      // Check enrollment status for students
+      let isEnrolled = false
+      let userProgress = 0
+      
+      if (user?.role === 'student') {
+        try {
+          const enrollmentResponse = await enrollmentApi.checkEnrollment(courseId)
+          if (enrollmentResponse.success && enrollmentResponse.data) {
+            isEnrolled = true
+            userProgress = enrollmentResponse.data.progress?.percentage || 0
+          }
+        } catch (enrollmentError) {
+          console.warn('Could not check enrollment status:', enrollmentError)
+        }
+      }
+      
+      // Transform API response to our component structure
+      const course: CourseData = {
+        id: response.data._id || response.data.id,
+        title: response.data.title || 'Untitled Course',
+        description: response.data.description || 'No description available',
+        instructor: response.data.instructor || 'Unknown Instructor',
+        thumbnail: response.data.thumbnail,
+        duration: response.data.duration,
+        level: response.data.level || 'Beginner',
+        rating: response.data.rating || 0,
+        reviews: response.data.reviews || 0,
+        students: response.data.students || 0,
+        price: response.data.price || 0,
+        enrolled: isEnrolled,
+        progress: userProgress,
+        modules: response.data.modules?.map((module: any, index: number) => ({
+          id: module._id || module.id || `module-${index}`,
+          title: module.title || `Module ${index + 1}`,
+          order: module.order || index,
+          lessons: module.lessons?.map((lesson: any, lessonIndex: number) => ({
+            id: lesson._id || lesson.id || `lesson-${lessonIndex}`,
+            title: lesson.title || `Lesson ${lessonIndex + 1}`,
+            type: lesson.type || 'video',
+            duration: lesson.duration || '10 min',
+            completed: false, // User progress would determine this
+            locked: lessonIndex > 0 && !isEnrolled, // Lock lessons for non-enrolled users
+            order: lesson.order || lessonIndex
+          })) || []
+        })) || []
+      }
+      
+      setCourseData(course)
+    } catch (err) {
+      console.error('Failed to load course:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load course'
+      setError(errorMessage)
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
     }
+  }
 
+  useEffect(() => {
     if (courseId) {
       loadCourseData()
     }
@@ -217,6 +218,15 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
+      {/* Payment Result Alert */}
+      <PaymentResult 
+        courseId={courseData?.id}
+        onSuccess={() => {
+          // Refetch course data to update enrollment status
+          loadCourseData();
+        }}
+      />
+      
       {/* Hero Section */}
       <section className="py-12 bg-gradient-to-r from-primary/5 via-accent/5 to-secondary/5">
         <div className="container mx-auto px-4">
@@ -280,16 +290,50 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
                     </div>
                   ) : (
                     <div className="space-y-4">
+                      {/* Payment Status and Result */}
+                      <PaymentStatus 
+                        courseId={courseData.id} 
+                        onStatusChange={(status) => {
+                          if (status.isEnrolled) {
+                            setCourseData(prev => prev ? {...prev, enrolled: true} : null);
+                          }
+                        }} 
+                      />
+                      
                       <div className="text-center">
-                        <p className="text-3xl font-bold mb-2">${courseData.price}</p>
-                        <p className="text-sm text-muted-foreground">One-time payment</p>
+                        <p className="text-3xl font-bold mb-2">
+                          {courseData.price && courseData.price > 0 
+                            ? `$${courseData.price}` 
+                            : 'Free'
+                          }
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {courseData.price && courseData.price > 0 
+                            ? 'One-time payment' 
+                            : 'No cost to enroll'
+                          }
+                        </p>
                       </div>
-                      <Button 
-                        className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
-                        onClick={handleEnrollment}
-                      >
-                        Enroll Now
-                      </Button>
+
+                      {courseData.price && courseData.price > 0 ? (
+                        <PurchaseCourseButton 
+                          course={{
+                            _id: courseData.id,
+                            title: courseData.title,
+                            price: courseData.price,
+                            slug: courseData.id // You may want to add slug to courseData
+                          }}
+                          isEnrolled={courseData.enrolled}
+                        />
+                      ) : (
+                        <Button 
+                          className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
+                          onClick={handleEnrollment}
+                        >
+                          Enroll for Free
+                        </Button>
+                      )}
+
                       <Button variant="outline" className="w-full bg-transparent">
                         Add to Wishlist
                       </Button>
