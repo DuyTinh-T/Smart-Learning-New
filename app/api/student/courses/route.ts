@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import Course from '@/models/Course'
+import { Enrollment } from '@/models'
 import { authenticate } from '@/lib/auth'
 
 // GET /api/student/courses - Get enrolled courses for current student
@@ -27,48 +28,35 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '10')
-
-    // For now, we'll get all public courses as a placeholder for enrolled courses
-    // In a real app, you'd have an Enrollment model to track student enrollments
+    const status = searchParams.get('status') || 'active'
     const skip = (page - 1) * limit
 
-    // Get courses (simulating enrollment - in real app you'd join with enrollment table)
-    const courses = await Course.find({ 
-      visibility: 'public',
-      isActive: true 
+    // Get user's enrollments
+    const enrollments = await Enrollment.find({ 
+      student: user._id,
+      status: status
     })
-    .populate('createdBy', 'name email')
-    .select('title description category tags thumbnail price enrollmentCount createdBy createdAt modules')
-    .sort({ createdAt: -1 })
+    .populate({
+      path: 'course',
+      select: 'title description category tags thumbnail price enrollmentCount createdBy createdAt',
+      populate: {
+        path: 'createdBy',
+        select: 'name email'
+      }
+    })
+    .sort({ enrolledAt: -1 })
     .skip(skip)
     .limit(limit)
 
-    const total = await Course.countDocuments({ 
-      visibility: 'public',
-      isActive: true 
+    const total = await Enrollment.countDocuments({ 
+      student: user._id,
+      status: status
     })
 
     // Transform courses for student dashboard
-    const enrolledCourses = courses.map((course: any) => {
-      // Calculate progress (mock data - in real app this would come from user progress)
-      const totalLessons = course.modules?.reduce((acc: number, module: any) => {
-        return acc + (module.lessons?.length || 0)
-      }, 0) || 0
-
-      // Mock completed lessons (in real app, track actual progress)
-      const completedLessons = Math.floor(Math.random() * totalLessons)
-      const progress = totalLessons > 0 ? Math.floor((completedLessons / totalLessons) * 100) : 0
-
-      // Mock next lesson (in real app, calculate from actual progress)
-      const nextLessonOptions = [
-        'Introduction to Basics',
-        'Understanding Core Concepts', 
-        'Practical Applications',
-        'Advanced Techniques',
-        'Project Implementation',
-        'Final Assessment'
-      ]
-      const nextLesson = nextLessonOptions[Math.floor(Math.random() * nextLessonOptions.length)]
+    const enrolledCourses = enrollments.map((enrollment: any) => {
+      const course = enrollment.course
+      // Use real enrollment progress data
 
       return {
         id: course._id.toString(),
@@ -81,13 +69,12 @@ export async function GET(request: NextRequest) {
         tags: course.tags,
         price: course.price,
         enrollmentCount: course.enrollmentCount,
-        progress,
-        totalLessons,
-        completedLessons,
-        nextLesson,
+        progress: enrollment.progress?.percentage || 0,
+        totalLessons: enrollment.progress?.totalLessons || 0,
+        completedLessons: enrollment.progress?.completedLessons?.length || 0,
+        nextLesson: enrollment.progress?.percentage < 100 ? 'Continue Learning' : 'Course Completed',
         createdAt: course.createdAt,
-        // Mock enrollment date (in real app, this would come from enrollment record)
-        enrolledAt: new Date(course.createdAt.getTime() + Math.random() * 30 * 24 * 60 * 60 * 1000) // Random date within 30 days of course creation
+        enrolledAt: enrollment.enrolledAt
       }
     })
 

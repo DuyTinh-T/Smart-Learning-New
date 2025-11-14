@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BookOpen, Clock, Award, TrendingUp, Play, CheckCircle2, Sparkles, Loader2 } from "lucide-react"
 import { motion } from "framer-motion"
 import Link from "next/link"
-import { studentApi } from "@/lib/api/course-api"
+import { studentApi, enrollmentApi } from "@/lib/api/course-api"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
 
@@ -102,30 +102,59 @@ export function StudentDashboard() {
 
   // Load enrolled courses
   useEffect(() => {
-    const loadEnrolledCourses = async () => {
+    const fetchEnrolledCourses = async () => {
       if (!user || user.role !== 'student') {
         setLoading(false)
         return
       }
 
       try {
-        setLoading(true)
         setError(null)
-        
-        const response = await studentApi.getEnrolledCourses({ limit: 10 })
+        const response = await enrollmentApi.getAll({ status: 'active' })
         
         if (response.success && response.data) {
-          setEnrolledCourses(response.data.courses || [])
-          setStats(response.data.stats || stats)
+          // Transform enrollment data to course format expected by UI
+          const enrollmentData = response.data.enrollments || []
+          const transformedCourses = enrollmentData.map((enrollment: any) => ({
+            id: enrollment.course._id || enrollment.course.id,
+            title: enrollment.course.title,
+            instructor: enrollment.course.instructor,
+            instructorEmail: 'instructor@example.com', // Mock data
+            progress: enrollment.progress?.percentage || 0,
+            thumbnail: enrollment.course.thumbnail,
+            level: enrollment.course.level,
+            duration: enrollment.course.duration || '8 weeks',
+            category: enrollment.course.category || 'Programming',
+            tags: enrollment.course.tags || [],
+            price: enrollment.course.price || 0,
+            enrollmentCount: 0, // Mock data
+            totalLessons: enrollment.progress?.totalLessons || 0,
+            completedLessons: enrollment.progress?.completedLessons?.length || 0,
+            nextLesson: 'Next Lesson', // Mock data
+            enrolledAt: enrollment.enrolledAt,
+            createdAt: enrollment.course.createdAt || enrollment.enrolledAt
+          }))
+          
+          setEnrolledCourses(transformedCourses)
+          
+          // Update stats from enrollment data
+          const stats = response.data.stats
+          setStats({
+            totalEnrolled: stats?.active || transformedCourses.length,
+            averageProgress: transformedCourses.reduce((acc: number, course: any) => acc + course.progress, 0) / Math.max(transformedCourses.length, 1),
+            totalHoursLearned: Math.round(transformedCourses.reduce((acc: number, course: any) => acc + (course.progress / 100 * 10), 0)),
+            certificatesEarned: stats?.completed || 0
+          })
         } else {
-          throw new Error(response.error || 'Failed to load courses')
+          throw new Error(response.error || 'Failed to fetch courses')
         }
-      } catch (err: any) {
-        console.error('Error loading enrolled courses:', err)
-        setError(err.message || 'Failed to load courses')
+      } catch (err) {
+        console.error('Failed to fetch enrolled courses:', err)
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load courses'
+        setError(errorMessage)
         toast({
           title: "Error",
-          description: "Failed to load your courses. Please try again.",
+          description: errorMessage,
           variant: "destructive"
         })
       } finally {
@@ -133,7 +162,7 @@ export function StudentDashboard() {
       }
     }
 
-    loadEnrolledCourses()
+    fetchEnrolledCourses()
   }, [user, toast])
 
   if (!user) {

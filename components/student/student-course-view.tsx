@@ -19,7 +19,7 @@ import {
   ChevronRight
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { courseApi } from "@/lib/api/course-api"
+import { courseApi, enrollmentApi } from "@/lib/api/course-api"
 import { useAuth } from "@/lib/auth-context"
 import { QuizView } from "@/components/quiz/quiz-view"
 import { ProjectSubmissionView } from "@/components/project/project-submission-view"
@@ -90,30 +90,91 @@ export function StudentCourseView({ courseId, onBack }: StudentCourseViewProps) 
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null)
   const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set())
   const [isEnrolled, setIsEnrolled] = useState(false)
-  const [lessonProgress, setLessonProgress] = useState<Record<string, boolean>>({}) // Track lesson completion status
+  const [lessonProgress, setLessonProgress] = useState<Record<string, boolean>>({})
+  const [enrollment, setEnrollment] = useState<any>(null) // Track lesson completion status
 
-  // Load course details
+  // Load course details and enrollment data
   const loadCourse = async () => {
     try {
       setLoading(true)
-      const response = await courseApi.getById(courseId)
       
-      if (response.success && response.data) {
-        setCourse(response.data)
-        
-        // Check if user is enrolled (for now, assume enrolled if can access)
-        setIsEnrolled(true)
-        
-        // Load first lesson by default
-        if (response.data.modules && response.data.modules.length > 0) {
-          const firstModule = response.data.modules[0]
-          if (firstModule.lessons && firstModule.lessons.length > 0) {
-            setSelectedLesson(firstModule.lessons[0])
-          }
-        }
-      } else {
-        throw new Error(response.error || 'Failed to load course')
+      // First check if user is enrolled
+      const enrollmentResponse = await enrollmentApi.checkEnrollment(courseId)
+      if (!enrollmentResponse.success || !enrollmentResponse.data) {
+        throw new Error('You are not enrolled in this course')
       }
+      
+      // Load enrollment progress
+      const progressResponse = await enrollmentApi.getProgress(enrollmentResponse.data._id)
+      if (!progressResponse.success) {
+        throw new Error('Failed to load course progress')
+      }
+      
+      setEnrollment(enrollmentResponse.data)
+      setIsEnrolled(true)
+      
+      // Set course data from enrollment response
+      const courseData = progressResponse.data.course
+      const lessons = progressResponse.data.lessons || []
+      
+      // Transform data to match Course interface
+      const transformedCourse: Course = {
+        _id: courseData._id,
+        title: courseData.title,
+        description: courseData.description,
+        category: 'Programming', // Mock data
+        tags: [],
+        thumbnail: courseData.thumbnail,
+        price: 0,
+        visibility: 'public',
+        enrollmentCount: 0,
+        createdBy: {
+          _id: 'instructor-id',
+          name: courseData.instructor || 'Instructor',
+          email: 'instructor@example.com'
+        },
+        createdAt: new Date().toISOString(),
+        modules: []
+      }
+      
+      // Group lessons by module and transform
+      const moduleMap = new Map()
+      lessons.forEach((lesson: any) => {
+        if (!moduleMap.has(lesson.moduleId)) {
+          moduleMap.set(lesson.moduleId, {
+            _id: lesson.moduleId,
+            title: lesson.moduleTitle,
+            order: lesson.moduleOrder,
+            lessons: []
+          })
+        }
+        moduleMap.get(lesson.moduleId).lessons.push(lesson)
+      })
+      
+      transformedCourse.modules = Array.from(moduleMap.values())
+      setCourse(transformedCourse)
+      
+      // Set completed lessons
+      const completedLessonIds = lessons
+        .filter((lesson: any) => lesson.completed)
+        .map((lesson: any) => lesson._id)
+      setCompletedLessons(new Set(completedLessonIds))
+      
+      // Set lesson progress
+      const progressMap: Record<string, boolean> = {}
+      lessons.forEach((lesson: any) => {
+        progressMap[lesson._id] = lesson.completed
+      })
+      setLessonProgress(progressMap)
+      
+      // Load first uncompleted lesson or first lesson
+      const firstIncompleteLesson = lessons.find((lesson: any) => !lesson.completed)
+      const lessonToSelect = firstIncompleteLesson || lessons[0]
+      
+      if (lessonToSelect) {
+        setSelectedLesson(lessonToSelect)
+      }
+      
     } catch (error: any) {
       console.error('Error loading course:', error)
       toast({
@@ -127,7 +188,7 @@ export function StudentCourseView({ courseId, onBack }: StudentCourseViewProps) 
   }
 
   // Mark lesson as completed
-  const markLessonCompleted = (lessonId: string) => {
+  const markLessonCompleted = async (lessonId: string) => {
     // Check if lesson can be completed based on type
     if (!canCompleteLesson(lessonId)) {
       toast({
@@ -137,12 +198,41 @@ export function StudentCourseView({ courseId, onBack }: StudentCourseViewProps) 
       })
       return
     }
-    
-    setCompletedLessons(prev => new Set([...prev, lessonId]))
-    toast({
-      title: "Hoàn thành!",
-      description: "Bài học đã được đánh dấu hoàn thành",
-    })
+
+    if (!enrollment) {
+      toast({
+        title: "Lỗi",
+        description: "Không tìm thấy thông tin đăng ký khóa học.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const response = await enrollmentApi.updateProgress(
+        enrollment._id,
+        lessonId,
+        'complete'
+      )
+
+      if (response.success) {
+        setCompletedLessons(prev => new Set([...prev, lessonId]))
+        setLessonProgress(prev => ({ ...prev, [lessonId]: true }))
+        toast({
+          title: "Hoàn thành!",
+          description: "Bài học đã được đánh dấu hoàn thành",
+        })
+      } else {
+        throw new Error(response.error || 'Failed to update progress')
+      }
+    } catch (error) {
+      console.error('Error marking lesson completed:', error)
+      toast({
+        title: "Lỗi",
+        description: "Không thể cập nhật tiến độ học tập.",
+        variant: "destructive",
+      })
+    }
   }
 
   // Check if a lesson can be completed
@@ -166,20 +256,50 @@ export function StudentCourseView({ courseId, onBack }: StudentCourseViewProps) 
   }
 
   // Handle quiz completion
-  const handleQuizCompletion = (lessonId: string, score: number) => {
+  const handleQuizCompletion = async (lessonId: string, score: number) => {
     const passingScore = 70
-    if (score >= passingScore) {
-      setLessonProgress(prev => ({ ...prev, [lessonId]: true }))
-      setCompletedLessons(prev => new Set([...prev, lessonId]))
+    
+    if (!enrollment) {
       toast({
-        title: "Quiz hoàn thành!",
-        description: `Bạn đạt ${score}% - Bài học đã được đánh dấu hoàn thành.`,
+        title: "Lỗi",
+        description: "Không tìm thấy thông tin đăng ký khóa học.",
+        variant: "destructive",
       })
-    } else {
-      setLessonProgress(prev => ({ ...prev, [lessonId]: false }))
+      return
+    }
+
+    try {
+      const response = await enrollmentApi.updateProgress(
+        enrollment._id,
+        lessonId,
+        'quiz_result',
+        { score }
+      )
+
+      if (response.success) {
+        if (score >= passingScore) {
+          setLessonProgress(prev => ({ ...prev, [lessonId]: true }))
+          setCompletedLessons(prev => new Set([...prev, lessonId]))
+          toast({
+            title: "Quiz hoàn thành!",
+            description: `Bạn đạt ${score}% - Bài học đã được đánh dấu hoàn thành.`,
+          })
+        } else {
+          setLessonProgress(prev => ({ ...prev, [lessonId]: false }))
+          toast({
+            title: "Chưa đạt điểm",
+            description: `Bạn đạt ${score}%. Cần đạt ít nhất ${passingScore}% để hoàn thành bài học.`,
+            variant: "destructive",
+          })
+        }
+      } else {
+        throw new Error(response.error || 'Failed to save quiz result')
+      }
+    } catch (error) {
+      console.error('Error saving quiz result:', error)
       toast({
-        title: "Chưa đạt điểm",
-        description: `Bạn đạt ${score}%. Cần đạt ít nhất ${passingScore}% để hoàn thành bài học.`,
+        title: "Lỗi",
+        description: "Không thể lưu kết quả quiz.",
         variant: "destructive",
       })
     }

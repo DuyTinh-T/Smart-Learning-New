@@ -196,25 +196,71 @@ export const lessonApi = {
 
 // Student API functions
 export const studentApi = {
-  // Get enrolled courses for student
-  getEnrolledCourses: async (params?: {
-    page?: number;
-    limit?: number;
-  }): Promise<ApiResponse<any>> => {
-    const searchParams = new URLSearchParams();
-    
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined) {
-          searchParams.append(key, value.toString());
-        }
-      });
-    }
-    
-    const queryString = searchParams.toString();
-    return apiCall(`/student/courses${queryString ? `?${queryString}` : ''}`);
+  // Get enrolled courses for student dashboard
+  getEnrolledCourses: async (): Promise<ApiResponse<any>> => {
+    return apiCall('/enrollments')
+  }
+}
+
+// Enrollment API functions
+export const enrollmentApi = {
+  // Enroll in a course
+  enroll: async (courseId: string): Promise<ApiResponse<any>> => {
+    return apiCall('/enrollments', {
+      method: 'POST',
+      body: JSON.stringify({ courseId }),
+    })
   },
-};
+
+  // Get user's enrollments
+  getAll: async (params?: {
+    status?: string
+    page?: number
+    limit?: number
+  }): Promise<ApiResponse<any>> => {
+    const queryParams = new URLSearchParams()
+    if (params?.status) queryParams.append('status', params.status)
+    if (params?.page) queryParams.append('page', params.page.toString())
+    if (params?.limit) queryParams.append('limit', params.limit.toString())
+
+    const endpoint = queryParams.toString() ? `/enrollments?${queryParams}` : '/enrollments'
+    return apiCall(endpoint)
+  },
+
+  // Get enrollment progress for a specific course
+  getProgress: async (enrollmentId: string): Promise<ApiResponse<any>> => {
+    return apiCall(`/enrollments/${enrollmentId}/progress`)
+  },
+
+  // Update lesson progress
+  updateProgress: async (
+    enrollmentId: string,
+    lessonId: string,
+    action: string,
+    data?: any
+  ): Promise<ApiResponse<any>> => {
+    return apiCall(`/enrollments/${enrollmentId}/progress`, {
+      method: 'PUT',
+      body: JSON.stringify({ lessonId, action, data }),
+    })
+  },
+
+  // Check if user is enrolled in a course
+  checkEnrollment: async (courseId: string): Promise<ApiResponse<any>> => {
+    const response = await apiCall('/enrollments')
+    if (response.success && response.data) {
+      const data = response.data as any
+      const enrollment = data.enrollments?.find((e: any) => 
+        e.course._id === courseId || e.course.id === courseId
+      )
+      return {
+        success: true,
+        data: enrollment || null
+      }
+    }
+    return response
+  }
+}
 
 // Utility function to handle API errors
 export const handleApiError = (error: string | undefined, details?: string[]): string => {

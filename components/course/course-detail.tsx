@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Clock, Users, Star, BookOpen, CheckCircle2, Lock, Play, Loader2, AlertCircle } from "lucide-react"
 import { motion } from "framer-motion"
 import Link from "next/link"
-import { courseApi } from "@/lib/api/course-api"
+import { courseApi, enrollmentApi } from "@/lib/api/course-api"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
 
@@ -78,27 +78,36 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
     }
 
     try {
-      // For now, just show a success message
-      // In a real app, you'd make an API call to enroll the user
-      toast({
-        title: "Enrollment Successful!",
-        description: "You have been enrolled in this course. Redirecting to course content...",
-      })
+      setLoading(true)
+      const response = await enrollmentApi.enroll(courseId)
       
-      // Update local state to show enrolled status
-      if (courseData) {
-        setCourseData({
-          ...courseData,
-          enrolled: true,
-          progress: 0
+      if (response.success) {
+        toast({
+          title: "Enrollment Successful!",
+          description: "You have been enrolled in this course. Welcome!",
         })
+        
+        // Update local state to show enrolled status
+        if (courseData) {
+          setCourseData({
+            ...courseData,
+            enrolled: true,
+            progress: 0
+          })
+        }
+      } else {
+        throw new Error(response.error || 'Enrollment failed')
       }
     } catch (error) {
+      console.error('Enrollment error:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to enroll in course'
       toast({
         title: "Enrollment Failed",
-        description: "There was an error enrolling you in this course. Please try again.",
+        description: errorMessage,
         variant: "destructive"
       })
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -119,10 +128,11 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
         
         if (user?.role === 'student') {
           try {
-            // Check if user is enrolled - we'll simulate this for now
-            // In a real app, you'd make an API call to check enrollment
-            isEnrolled = false // Default to not enrolled
-            userProgress = 0
+            const enrollmentResponse = await enrollmentApi.checkEnrollment(courseId)
+            if (enrollmentResponse.success && enrollmentResponse.data) {
+              isEnrolled = true
+              userProgress = enrollmentResponse.data.progress?.percentage || 0
+            }
           } catch (enrollmentError) {
             console.warn('Could not check enrollment status:', enrollmentError)
           }
