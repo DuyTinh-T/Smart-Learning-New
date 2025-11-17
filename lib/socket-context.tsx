@@ -30,12 +30,16 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    const newSocket = io(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000', {
-      // include a trailing slash to avoid server redirect from /api/socketio/ -> /api/socketio
-      path: '/api/socketio/',
-      // prefer websocket first, fallback to polling if necessary
-      transports: ['websocket', 'polling'],
-      // automatic reconnection with sensible backoff
+    // Connect to standalone Socket.IO server
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000';
+    console.log('🔌 Connecting to Socket.IO server:', socketUrl);
+    
+    const newSocket = io(socketUrl, {
+      // Use default Socket.IO path
+      path: '/socket.io/',
+      // Support both transports
+      transports: ['polling', 'websocket'],
+      // Automatic reconnection with sensible backoff
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 500,
