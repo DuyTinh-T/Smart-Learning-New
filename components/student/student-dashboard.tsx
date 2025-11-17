@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BookOpen, Clock, Award, TrendingUp, Play, CheckCircle2, Sparkles, Loader2 } from "lucide-react"
+import { BookOpen, Clock, Award, TrendingUp, Play, CheckCircle2, Sparkles, Loader2, TestTube } from "lucide-react"
 import { motion } from "framer-motion"
 import Link from "next/link"
 import { studentApi, enrollmentApi } from "@/lib/api/course-api"
@@ -199,19 +199,27 @@ export function StudentDashboard() {
             <h1 className="text-3xl font-bold mb-2">Welcome back, {user?.name || 'Student'}!</h1>
             <p className="text-muted-foreground">Continue your learning journey</p>
           </div>
-          <Button 
-            variant="outline" 
-            onClick={() => window.location.reload()}
-            disabled={loading}
-            className="flex items-center gap-2"
-          >
-            {loading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <TrendingUp className="h-4 w-4" />
-            )}
-            Refresh
-          </Button>
+          <div className="flex gap-3">
+            <Link href="/student/join">
+              <Button className="flex items-center gap-2">
+                <TestTube className="h-4 w-4" />
+                Join Exam Room
+              </Button>
+            </Link>
+            <Button 
+              variant="outline" 
+              onClick={() => window.location.reload()}
+              disabled={loading}
+              className="flex items-center gap-2"
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <TrendingUp className="h-4 w-4" />
+              )}
+              Refresh
+            </Button>
+          </div>
         </div>
       </motion.div>
 

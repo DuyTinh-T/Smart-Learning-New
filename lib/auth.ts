@@ -18,9 +18,12 @@ export const generateToken = (userId: string): string => {
 // JWT token verification
 export const verifyToken = (token: string): { userId: string } | null => {
   try {
+    console.log('verifyToken: Attempting to verify token:', token.substring(0, 20) + '...');
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+    console.log('verifyToken: Token verified successfully for userId:', decoded.userId);
     return decoded;
   } catch (error) {
+    console.log('verifyToken: Token verification failed:', error instanceof Error ? error.message : 'Unknown error');
     return null;
   }
 };
@@ -33,6 +36,7 @@ export const authenticate = async (request: NextRequest): Promise<{ user: IUser 
     
     // Check Authorization header first
     const authHeader = request.headers.get('authorization');
+    console.log('authenticate: authHeader:', authHeader ? authHeader.substring(0, 30) + '...' : 'null');
     if (authHeader && authHeader.startsWith('Bearer ')) {
       token = authHeader.substring(7);
     }
@@ -40,15 +44,20 @@ export const authenticate = async (request: NextRequest): Promise<{ user: IUser 
     // If no Authorization header, check cookies
     if (!token) {
       token = request.cookies.get('auth-token')?.value || null;
+      console.log('authenticate: cookie token:', token ? token.substring(0, 20) + '...' : 'null');
     }
 
     if (!token) {
+      console.log('authenticate: No token provided');
       return { user: null, error: 'No token provided' };
     }
+
+    console.log('authenticate: Using token:', token.substring(0, 20) + '...');
 
     // Verify token
     const decoded = verifyToken(token);
     if (!decoded) {
+      console.log('authenticate: Token verification failed');
       return { user: null, error: 'Invalid token' };
     }
 
@@ -88,15 +97,24 @@ export const requireRole = (allowedRoles: string[]) => {
 // Helper for API route authentication
 export const verifyAuth = async (request: NextRequest): Promise<{ success: boolean; userId?: string; user?: IUser; error?: string }> => {
   try {
+    console.log('verifyAuth: Starting authentication...');
+    
     const authResult = await authenticate(request);
+    console.log('verifyAuth: authenticate result:', {
+      hasUser: !!authResult.user,
+      error: authResult.error,
+      userRole: authResult.user?.role
+    });
     
     if (authResult.error || !authResult.user) {
+      console.log('verifyAuth: Authentication failed:', authResult.error);
       return { 
         success: false, 
         error: authResult.error || 'Authentication failed' 
       };
     }
     
+    console.log('verifyAuth: Authentication successful for user:', authResult.user.email);
     return { 
       success: true, 
       userId: (authResult.user._id as any).toString(),

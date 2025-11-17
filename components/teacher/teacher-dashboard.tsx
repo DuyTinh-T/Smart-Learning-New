@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BookOpen, Users, TrendingUp, DollarSign, Edit, Eye, BarChart3 } from "lucide-react"
+import { BookOpen, Users, TrendingUp, DollarSign, Edit, Eye, BarChart3, TestTube } from "lucide-react"
 import { motion } from "framer-motion"
 import Link from "next/link"
 import { CreateCourseDialog } from "@/components/teacher/create-course-dialog"
@@ -75,6 +75,12 @@ export function TeacherDashboard() {
           <p className="text-muted-foreground">Manage your courses and track student progress</p>
         </div>
         <div className="flex gap-3">
+          <Link href="/teacher/rooms">
+            <Button variant="outline" className="flex items-center gap-2">
+              <TestTube className="h-4 w-4" />
+              Exam Rooms
+            </Button>
+          </Link>
           <CreateCourseDialog />
           <CreateQuizDialog />
         </div>
@@ -154,12 +160,36 @@ export function TeacherDashboard() {
       <Tabs defaultValue="courses" className="space-y-6">
         <TabsList className="bg-card">
           <TabsTrigger value="courses">My Courses</TabsTrigger>
+          <TabsTrigger value="rooms">Exam Rooms</TabsTrigger>
           <TabsTrigger value="students">Students</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
         <TabsContent value="courses" className="space-y-4">
           <CourseManagement />
+        </TabsContent>
+
+        <TabsContent value="rooms" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Exam Rooms</CardTitle>
+                  <CardDescription>Manage your exam rooms and monitor student participation</CardDescription>
+                </div>
+                <Link href="/teacher/rooms">
+                  <Button>
+                    View All Rooms
+                  </Button>
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground text-center py-8">
+                Create and manage real-time exam rooms where students can join and take quizzes together.
+              </p>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="students" className="space-y-4">
