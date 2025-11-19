@@ -5,9 +5,11 @@ import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { AuthProvider } from "@/lib/auth-context"
+import { SocketProvider } from "@/lib/socket-context"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { Suspense } from "react"
+import ChunkErrorHandler from '@/components/chunk-error-handler'
 
 export const metadata: Metadata = {
   title: "Learning Platform",
@@ -26,8 +28,11 @@ export default function RootLayout({
         <Suspense fallback={<div>Loading...</div>}>
           <ThemeProvider>
             <AuthProvider>
-              {children}
-              <Toaster />
+              <SocketProvider>
+                {children}
+                <ChunkErrorHandler />
+                <Toaster />
+              </SocketProvider>
             </AuthProvider>
           </ThemeProvider>
         </Suspense>

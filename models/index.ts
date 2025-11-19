@@ -10,6 +10,8 @@ export { default as Notification, type INotification } from './Notification';
 export { default as ProjectSubmission, type IProjectSubmission } from './ProjectSubmission';
 export { Enrollment, type IEnrollment } from './Enrollment';
 export { default as Payment, type IPayment } from './Payment';
+export { default as Room, type IRoom } from './Room';
+export { default as Submission, type ISubmission, type IAnswer } from './Submission';
 
 // Export database connection
 export { default as connectDB } from '../lib/mongodb';

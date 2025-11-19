@@ -1,0 +1,174 @@
+import { NextRequest, NextResponse } from 'next/server';
+import connectDB from '@/lib/mongodb';
+import Room from '@/models/Room';
+import User from '@/models/User';
+import { verifyToken } from '@/lib/auth';
+
+// Helper function to get user from request
+async function getUserFromRequest(request: NextRequest) {
+  const token = request.headers.get('authorization')?.replace('Bearer ', '');
+  if (!token) return null;
+  
+  const decoded = verifyToken(token);
+  if (!decoded) return null;
+  
+  await connectDB();
+  const user = await User.findById(decoded.userId);
+  return user;
+}
+
+// GET /api/rooms/[code] - Get room by code
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ code: string }> }
+) {
+  try {
+    const { code } = await params;
+    
+    const user = await getUserFromRequest(request);
+    
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    await connectDB();
+    
+    const room = await Room.findByCode(code);
+    
+    if (!room) {
+      return NextResponse.json({ error: 'Room not found' }, { status: 404 });
+    }
+
+    // Check if user has access to this room
+    const isTeacher = (room.teacherId as any).toString() === (user as any)._id.toString();
+    
+    // Student access logic:
+    // - If allowedStudents is null/undefined/empty array → allow all students
+    // - If allowedStudents has items → only allow students in the list
+    const hasStudentRestriction = room.allowedStudents && room.allowedStudents.length > 0;
+    const isAllowedStudent = !hasStudentRestriction || 
+      (room.allowedStudents?.some(id => id.toString() === (user as any)._id.toString()) ?? false);
+
+    if (!isTeacher && !isAllowedStudent && user.role === 'student') {
+      return NextResponse.json({ error: 'Access denied to this room' }, { status: 403 });
+    }
+
+    // Populate exam quiz data
+    const populatedRoom = await Room.findById(room._id)
+      .populate('examQuizId')
+      .populate('teacherId', 'name email');
+
+    return NextResponse.json({ 
+      room: populatedRoom,
+      userRole: isTeacher ? 'teacher' : 'student'
+    }, { status: 200 });
+    
+  } catch (error) {
+    console.error('Error fetching room:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+// PUT /api/rooms/[code] - Update room (teacher only)
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ code: string }> }
+) {
+  try {
+    const { code } = await params;
+    
+    const user = await getUserFromRequest(request);
+    
+    if (!user || user.role !== 'teacher') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { title, description, duration, maxStudents, settings } = body;
+
+    await connectDB();
+    
+    const room = await Room.findByCode(code);
+    
+    if (!room) {
+      return NextResponse.json({ error: 'Room not found' }, { status: 404 });
+    }
+
+    if ((room.teacherId as any).toString() !== (user as any)._id.toString()) {
+      return NextResponse.json({ error: 'Only the room creator can update it' }, { status: 403 });
+    }
+
+    if (room.status !== 'waiting') {
+      return NextResponse.json({ error: 'Cannot update room after exam has started' }, { status: 400 });
+    }
+
+    // Update room fields
+    if (title) room.title = title;
+    if (description !== undefined) room.description = description;
+    if (duration) room.duration = duration;
+    if (maxStudents !== undefined) room.maxStudents = maxStudents;
+    if (settings) {
+      room.settings = {
+        ...room.settings,
+        ...settings,
+      };
+    }
+
+    await room.save();
+    
+    const populatedRoom = await Room.findById(room._id)
+      .populate('examQuizId', 'title questions')
+      .populate('teacherId', 'name email');
+
+    return NextResponse.json({ 
+      room: populatedRoom,
+      message: 'Room updated successfully' 
+    }, { status: 200 });
+    
+  } catch (error) {
+    console.error('Error updating room:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+// DELETE /api/rooms/[code] - Delete room (teacher only)
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ code: string }> }
+) {
+  try {
+    const { code } = await params;
+    
+    const user = await getUserFromRequest(request);
+    
+    if (!user || user.role !== 'teacher') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    await connectDB();
+    
+    const room = await Room.findByCode(code);
+    
+    if (!room) {
+      return NextResponse.json({ error: 'Room not found' }, { status: 404 });
+    }
+
+    if ((room.teacherId as any).toString() !== (user as any)._id.toString()) {
+      return NextResponse.json({ error: 'Only the room creator can delete it' }, { status: 403 });
+    }
+
+    if (room.status === 'running') {
+      return NextResponse.json({ error: 'Cannot delete room while exam is running' }, { status: 400 });
+    }
+
+    await Room.findByIdAndDelete(room._id);
+
+    return NextResponse.json({ 
+      message: 'Room deleted successfully' 
+    }, { status: 200 });
+    
+  } catch (error) {
+    console.error('Error deleting room:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
