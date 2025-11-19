@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Room from '@/models/Room';
 import Submission from '@/models/Submission';
-import Quiz from '@/models/Quiz';
+import ExamQuiz from '@/models/ExamQuiz';
 import User from '@/models/User';
 import { verifyToken } from '@/lib/auth';
 
@@ -22,9 +22,11 @@ async function getUserFromRequest(request: NextRequest) {
 // POST /api/rooms/[code]/submit - Submit exam answers
 export async function POST(
   request: NextRequest,
-  { params }: { params: { code: string } }
+  { params }: { params: Promise<{ code: string }> }
 ) {
   try {
+    const { code } = await params;
+    
     const user = await getUserFromRequest(request);
     
     if (!user || user.role !== 'student') {
@@ -40,11 +42,13 @@ export async function POST(
 
     await connectDB();
     
-    const room = await Room.findByCode(params.code);
+    const room = await Room.findByCode(code);
     
     if (!room) {
       return NextResponse.json({ error: 'Room not found' }, { status: 404 });
     }
+
+    console.log('📋 Room status:', room.status);
 
     if (room.status === 'ended') {
       return NextResponse.json({ error: 'This exam has ended' }, { status: 400 });
@@ -60,14 +64,16 @@ export async function POST(
       return NextResponse.json({ error: 'No submission found. Please join the room first.' }, { status: 404 });
     }
 
+    console.log('📝 Submission status:', submission.status);
+
     if (submission.status !== 'in-progress') {
       return NextResponse.json({ error: 'Submission has already been completed' }, { status: 400 });
     }
 
-    // Get quiz to calculate score
-    const quiz = await Quiz.findById(room.quizId);
-    if (!quiz) {
-      return NextResponse.json({ error: 'Quiz not found' }, { status: 404 });
+    // Get exam quiz to calculate score
+    const examQuiz = await ExamQuiz.findById(room.examQuizId);
+    if (!examQuiz) {
+      return NextResponse.json({ error: 'Exam quiz not found' }, { status: 404 });
     }
 
     // Calculate score
@@ -77,7 +83,7 @@ export async function POST(
 
     for (let i = 0; i < answers.length; i++) {
       const answer = answers[i];
-      const question = quiz.questions[i];
+      const question = examQuiz.questions[i];
       
       if (!question || !question._id) continue;
 

@@ -20,9 +20,11 @@ async function getUserFromRequest(request: NextRequest) {
 // GET /api/rooms/[code] - Get room by code
 export async function GET(
   request: NextRequest,
-  { params }: { params: { code: string } }
+  { params }: { params: Promise<{ code: string }> }
 ) {
   try {
+    const { code } = await params;
+    
     const user = await getUserFromRequest(request);
     
     if (!user) {
@@ -31,7 +33,7 @@ export async function GET(
 
     await connectDB();
     
-    const room = await Room.findByCode(params.code);
+    const room = await Room.findByCode(code);
     
     if (!room) {
       return NextResponse.json({ error: 'Room not found' }, { status: 404 });
@@ -39,8 +41,13 @@ export async function GET(
 
     // Check if user has access to this room
     const isTeacher = (room.teacherId as any).toString() === (user as any)._id.toString();
-    const isAllowedStudent = !room.allowedStudents || 
-      room.allowedStudents.some(id => id.toString() === (user as any)._id.toString());
+    
+    // Student access logic:
+    // - If allowedStudents is null/undefined/empty array → allow all students
+    // - If allowedStudents has items → only allow students in the list
+    const hasStudentRestriction = room.allowedStudents && room.allowedStudents.length > 0;
+    const isAllowedStudent = !hasStudentRestriction || 
+      (room.allowedStudents?.some(id => id.toString() === (user as any)._id.toString()) ?? false);
 
     if (!isTeacher && !isAllowedStudent && user.role === 'student') {
       return NextResponse.json({ error: 'Access denied to this room' }, { status: 403 });
@@ -65,9 +72,11 @@ export async function GET(
 // PUT /api/rooms/[code] - Update room (teacher only)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { code: string } }
+  { params }: { params: Promise<{ code: string }> }
 ) {
   try {
+    const { code } = await params;
+    
     const user = await getUserFromRequest(request);
     
     if (!user || user.role !== 'teacher') {
@@ -79,7 +88,7 @@ export async function PUT(
 
     await connectDB();
     
-    const room = await Room.findByCode(params.code);
+    const room = await Room.findByCode(code);
     
     if (!room) {
       return NextResponse.json({ error: 'Room not found' }, { status: 404 });
@@ -125,9 +134,11 @@ export async function PUT(
 // DELETE /api/rooms/[code] - Delete room (teacher only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { code: string } }
+  { params }: { params: Promise<{ code: string }> }
 ) {
   try {
+    const { code } = await params;
+    
     const user = await getUserFromRequest(request);
     
     if (!user || user.role !== 'teacher') {
@@ -136,7 +147,7 @@ export async function DELETE(
 
     await connectDB();
     
-    const room = await Room.findByCode(params.code);
+    const room = await Room.findByCode(code);
     
     if (!room) {
       return NextResponse.json({ error: 'Room not found' }, { status: 404 });

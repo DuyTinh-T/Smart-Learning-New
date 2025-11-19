@@ -75,10 +75,12 @@ const RoomSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 RoomSchema.statics.findByCode = function(code) {
-  return this.findOne({ roomCode: code }).populate('teacherId').populate('examQuizId');
+  console.log('🔎 findByCode called with:', code);
+  // Don't populate to avoid missing schema errors
+  return this.findOne({ roomCode: code });
 };
 
-const Room = mongoose.model('Room', RoomSchema);
+const Room = mongoose.models.Room || mongoose.model('Room', RoomSchema);
 
 const SubmissionSchema = new mongoose.Schema({
   roomId: { type: mongoose.Schema.Types.ObjectId, ref: 'Room', required: true },
@@ -146,7 +148,7 @@ SubmissionSchema.statics.getRoomStatistics = function(roomId) {
   ]);
 };
 
-const Submission = mongoose.model('Submission', SubmissionSchema);
+const Submission = mongoose.models.Submission || mongoose.model('Submission', SubmissionSchema);
 
 // Redis helper functions
 async function getRoomState(roomId) {
@@ -240,20 +242,28 @@ io.on('connection', (socket) => {
   // Join room event
   socket.on('join-room', async (data) => {
     try {
+      console.log('📨 Received join-room event:', data);
       const { roomCode, userId, userName, role } = data;
+      
+      console.log('🔍 Looking for room with code:', roomCode);
       const room = await Room.findByCode(roomCode);
+      console.log('🏠 Room found:', room ? { _id: room._id, roomCode: room.roomCode, status: room.status } : 'null');
 
       if (!room) {
+        console.error('❌ Room not found for code:', roomCode);
         socket.emit('error', { message: 'Room not found' });
         return;
       }
 
       if (room.status === 'ended') {
+        console.error('❌ Room has already ended:', roomCode);
         socket.emit('error', { message: 'This room has ended' });
         return;
       }
 
-      if (role === 'teacher' && room.teacherId._id.toString() !== userId) {
+      // teacherId is ObjectId, not populated
+      if (role === 'teacher' && room.teacherId.toString() !== userId) {
+        console.error('❌ User is not the teacher of this room. Expected:', room.teacherId.toString(), 'Got:', userId);
         socket.emit('error', { message: 'You are not the teacher of this room' });
         return;
       }
@@ -316,7 +326,8 @@ io.on('connection', (socket) => {
         return;
       }
 
-      if (room.teacherId._id.toString() !== teacherId) {
+      // teacherId is ObjectId, not populated
+      if (room.teacherId.toString() !== teacherId) {
         socket.emit('error', { message: 'Only the teacher can start the exam' });
         return;
       }
@@ -416,7 +427,8 @@ io.on('connection', (socket) => {
         return;
       }
 
-      if (room.teacherId._id.toString() !== teacherId) {
+      // teacherId is ObjectId, not populated
+      if (room.teacherId.toString() !== teacherId) {
         socket.emit('error', { message: 'Only teacher can view statistics' });
         return;
       }

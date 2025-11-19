@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useSocket, useRoomSocket } from '@/lib/socket-context';
+import { useAuth } from '@/lib/auth-context';
 import { 
   Clock, 
   Send, 
@@ -31,7 +32,7 @@ interface Question {
   explanation?: string;
 }
 
-interface Quiz {
+interface ExamQuiz {
   _id: string;
   title: string;
   questions: Question[];
@@ -43,7 +44,7 @@ interface Room {
   roomCode: string;
   status: 'waiting' | 'running' | 'ended';
   duration: number;
-  quizId: Quiz;
+  examQuizId?: ExamQuiz;
   startTime?: string;
   endTime?: string;
 }
@@ -64,12 +65,16 @@ export function StudentExamInterface({ roomCode }: StudentExamInterfaceProps) {
   
   const { socket, isConnected } = useSocket();
   const { submitExam } = useRoomSocket();
+  const { user: authUser, token } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 
   const fetchRoomData = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Please login to continue');
+      }
+
       const response = await fetch(`/api/rooms/${roomCode}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -94,12 +99,12 @@ export function StudentExamInterface({ roomCode }: StudentExamInterfaceProps) {
       setRoom(data.room);
 
       // Initialize answers array
-      const initialAnswers = data.room.quizId.questions.map((question: Question, index: number) => ({
+      const initialAnswers = data.room.examQuizId?.questions.map((question: Question, index: number) => ({
         questionId: question._id,
         answer: question.type === 'multiple-choice' ? null : '',
         timeTaken: 0,
         startTime: null,
-      }));
+      })) || [];
       
       setAnswers(initialAnswers);
 
@@ -154,7 +159,7 @@ export function StudentExamInterface({ roomCode }: StudentExamInterfaceProps) {
         title: 'Exam Ended',
         description: data.message,
       });
-      if (!isSubmitted) {
+      if (!isSubmitted && !submitting) {
         handleAutoSubmit();
       }
     });
@@ -224,20 +229,33 @@ export function StudentExamInterface({ roomCode }: StudentExamInterfaceProps) {
   }, [isSubmitted, submitting]);
 
   const handleSubmit = async (isAutoSubmit = false) => {
-    if (submitting || isSubmitted) return;
+    if (submitting || isSubmitted) {
+      console.log('⚠️ Submit blocked:', { submitting, isSubmitted });
+      return;
+    }
 
+    if (!authUser || !token) {
+      toast({
+        title: 'Authentication Error',
+        description: 'Please login to submit',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    console.log('🚀 Starting submit:', { isAutoSubmit, submitting, isSubmitted });
     setSubmitting(true);
 
     try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
       const finalAnswers = answers.map(answer => ({
         questionId: answer.questionId,
         answer: answer.answer,
         timeTaken: answer.timeTaken,
       }));
 
+      console.log('📤 Submitting exam:', { roomCode, studentId: authUser._id, answersCount: finalAnswers.length });
+
       // Submit via API
-      const token = localStorage.getItem('token');
       const response = await fetch(`/api/rooms/${roomCode}/submit`, {
         method: 'POST',
         headers: {
@@ -251,15 +269,32 @@ export function StudentExamInterface({ roomCode }: StudentExamInterfaceProps) {
 
       if (!response.ok) {
         const data = await response.json();
+        console.error('❌ Submit failed:', data);
         throw new Error(data.error || 'Failed to submit exam');
       }
+
+      const result = await response.json();
+      console.log('✅ Exam submitted successfully:', result);
+
+      // Mark as submitted to prevent double submission
+      setIsSubmitted(true);
 
       // Also submit via socket for real-time updates
       submitExam({
         roomCode,
-        studentId: user._id,
+        studentId: authUser._id,
         answers: finalAnswers,
       });
+
+      // Show success and redirect
+      toast({
+        title: 'Exam Submitted',
+        description: 'Your answers have been submitted successfully',
+      });
+
+      setTimeout(() => {
+        router.push(`/student/results/${roomCode}`);
+      }, 2000);
 
     } catch (error: any) {
       toast({
@@ -303,7 +338,18 @@ export function StudentExamInterface({ roomCode }: StudentExamInterfaceProps) {
     );
   }
 
-  const currentQuestion = room.quizId.questions[currentQuestionIndex];
+  if (!room.examQuizId || !room.examQuizId.questions || room.examQuizId.questions.length === 0) {
+    return (
+      <div className="text-center p-8">
+        <h2 className="text-xl font-semibold mb-2">Exam not available</h2>
+        <p className="text-muted-foreground">
+          The exam questions are not available.
+        </p>
+      </div>
+    );
+  }
+
+  const currentQuestion = room.examQuizId.questions[currentQuestionIndex];
   const currentAnswer = answers[currentQuestionIndex];
 
   return (
@@ -318,7 +364,7 @@ export function StudentExamInterface({ roomCode }: StudentExamInterfaceProps) {
                 {room.title}
               </CardTitle>
               <CardDescription>
-                Question {currentQuestionIndex + 1} of {room.quizId.questions.length}
+                Question {currentQuestionIndex + 1} of {room.examQuizId.questions.length}
               </CardDescription>
             </div>
             
@@ -363,7 +409,7 @@ export function StudentExamInterface({ roomCode }: StudentExamInterfaceProps) {
               value={currentAnswer?.answer?.toString() || ''}
               onValueChange={(value) => handleAnswerChange(parseInt(value))}
             >
-              {currentQuestion.options?.map((option, index) => (
+              {currentQuestion.options?.map((option: string, index: number) => (
                 <div key={index} className="flex items-center space-x-2">
                   <RadioGroupItem value={index.toString()} id={`option-${index}`} />
                   <Label htmlFor={`option-${index}`} className="flex-1 cursor-pointer">
@@ -403,7 +449,7 @@ export function StudentExamInterface({ roomCode }: StudentExamInterfaceProps) {
         </Button>
 
         <div className="flex gap-2">
-          {room.quizId.questions.map((_, index) => {
+          {room.examQuizId.questions.map((_: any, index: number) => {
             const answer = answers[index];
             const isAnswered = answer?.answer !== null && answer?.answer !== '';
             const isCurrent = index === currentQuestionIndex;
@@ -426,7 +472,7 @@ export function StudentExamInterface({ roomCode }: StudentExamInterfaceProps) {
           })}
         </div>
 
-        {currentQuestionIndex === room.quizId.questions.length - 1 ? (
+        {currentQuestionIndex === room.examQuizId.questions.length - 1 ? (
           <Button
             onClick={() => handleSubmit()}
             disabled={submitting || isSubmitted}
@@ -441,8 +487,8 @@ export function StudentExamInterface({ roomCode }: StudentExamInterfaceProps) {
           </Button>
         ) : (
           <Button
-            onClick={() => setCurrentQuestionIndex(prev => Math.min(room.quizId.questions.length - 1, prev + 1))}
-            disabled={currentQuestionIndex === room.quizId.questions.length - 1}
+            onClick={() => setCurrentQuestionIndex(prev => Math.min((room.examQuizId?.questions.length || 1) - 1, prev + 1))}
+            disabled={currentQuestionIndex === (room.examQuizId?.questions.length || 1) - 1}
           >
             Next
             <ChevronRight className="h-4 w-4 ml-1" />

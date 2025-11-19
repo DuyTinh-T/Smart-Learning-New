@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useSocket, useRoomSocket } from '@/lib/socket-context';
+import { useAuth } from '@/lib/auth-context';
 import { LogIn, Loader2, Users, Clock, BookOpen } from 'lucide-react';
 
 interface Room {
@@ -15,9 +16,9 @@ interface Room {
   roomCode: string;
   status: 'waiting' | 'running' | 'ended';
   duration: number;
-  quizId: {
+  examQuizId?: {
     title: string;
-    questionCount: number;
+    questions: any[];
   };
   teacherId: {
     name: string;
@@ -31,6 +32,7 @@ export function StudentJoinRoom() {
   const [isJoined, setIsJoined] = useState(false);
   const { socket, isConnected } = useSocket();
   const { joinRoom } = useRoomSocket();
+  const { user: authUser, token } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -76,11 +78,21 @@ export function StudentJoinRoom() {
       return;
     }
 
+    if (!authUser || !token) {
+      toast({
+        title: 'Authentication Error',
+        description: 'Please login to join a room',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(true);
+    console.log('🎓 Student joining room:', { roomCode: roomCode.toUpperCase(), student: authUser.name });
 
     try {
       // First, get room info via API
-      const token = localStorage.getItem('token');
+      console.log('📡 Fetching room info...');
       const response = await fetch(`/api/rooms/${roomCode.toUpperCase()}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -90,36 +102,43 @@ export function StudentJoinRoom() {
       const data = await response.json();
 
       if (!response.ok) {
+        console.error('❌ Room fetch failed:', data);
         throw new Error(data.error || 'Room not found');
       }
 
+      console.log('✅ Room found:', data.room);
       setRoom(data.room);
 
       // Then join the room via API to create submission
+      console.log('📝 Creating submission...');
       const joinResponse = await fetch(`/api/rooms/${roomCode.toUpperCase()}/join`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
       });
 
       const joinData = await joinResponse.json();
 
       if (!joinResponse.ok) {
+        console.error('❌ Join failed:', joinData);
         throw new Error(joinData.error || 'Failed to join room');
       }
 
+      console.log('✅ Submission created:', joinData);
+
       // Finally, connect via socket for real-time updates
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      
+      console.log('🔌 Connecting to socket...');
       joinRoom({
         roomCode: roomCode.toUpperCase(),
-        userId: user._id,
-        userName: user.name,
+        userId: authUser._id,
+        userName: authUser.name,
         role: 'student',
       });
 
     } catch (error: any) {
+      console.error('❌ Join room error:', error);
       toast({
         title: 'Error',
         description: error.message || 'Failed to join room',
@@ -162,7 +181,7 @@ export function StudentJoinRoom() {
             <Button 
               type="submit" 
               className="w-full" 
-              disabled={loading || !isConnected}
+              disabled={loading || !isConnected || !authUser}
             >
               {loading ? (
                 <>
@@ -174,7 +193,13 @@ export function StudentJoinRoom() {
               )}
             </Button>
 
-            {!isConnected && (
+            {!authUser && (
+              <p className="text-sm text-destructive text-center">
+                Please login to join a room
+              </p>
+            )}
+
+            {!isConnected && authUser && (
               <p className="text-sm text-muted-foreground text-center">
                 Connecting to server...
               </p>
@@ -203,7 +228,7 @@ export function StudentJoinRoom() {
               <div className="flex items-center gap-2">
                 <BookOpen className="h-4 w-4 text-blue-500" />
                 <span className="text-sm">
-                  {room.quizId.title} ({room.quizId.questionCount} questions)
+                  {room.examQuizId?.title || 'Exam'} ({room.examQuizId?.questions?.length || 0} questions)
                 </span>
               </div>
               

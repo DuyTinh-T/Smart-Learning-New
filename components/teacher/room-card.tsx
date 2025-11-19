@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useSocket, useRoomSocket } from '@/lib/socket-context';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/hooks/use-toast';
+import { RoomMonitorDialog } from './room-monitor-dialog';
 import { 
   Play, 
   Users, 
@@ -49,46 +50,67 @@ export function RoomCard({ room, onRoomUpdated, onRoomDeleted }: RoomCardProps) 
   const [totalStudents, setTotalStudents] = useState(0);
   const [isJoining, setIsJoining] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
+  const [showMonitor, setShowMonitor] = useState(false);
   const { socket, isConnected } = useSocket();
   const { joinRoom, startExam, getStatistics } = useRoomSocket();
   const { user: authUser } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!socket || !isConnected) return;
+    if (!socket) {
+      console.warn('⚠️ Socket not available in room-card');
+      return;
+    }
+
+    console.log('🎧 Setting up socket listeners for room:', room.roomCode);
 
     // Listen for room updates
-    socket.on('room-update', (data) => {
+    const handleRoomUpdate = (data: any) => {
+      console.log('📡 Room update received:', data);
       if (data.participants) {
         setParticipants(data.participants);
         setTotalStudents(data.totalStudents || 0);
       }
-    });
+    };
 
-    socket.on('exam-started', (data) => {
+    const handleExamStarted = (data: any) => {
+      console.log('🏁 Exam started:', data);
       toast({
         title: 'Exam Started',
         description: data.message,
       });
       onRoomUpdated({ ...room, status: 'running', startTime: data.startTime, endTime: data.endTime });
-    });
+      setIsStarting(false);
+    };
 
-    socket.on('exam-ended', (data) => {
+    const handleExamEnded = (data: any) => {
+      console.log('⏱️ Exam ended:', data);
       toast({
         title: 'Exam Ended',
         description: data.message,
       });
       onRoomUpdated({ ...room, status: 'ended' });
-    });
+    };
 
-    socket.on('student-submitted', (data) => {
+    const handleStudentSubmitted = (data: any) => {
+      console.log('📝 Student submitted:', data);
       toast({
         title: 'Student Submitted',
         description: `A student has submitted their exam`,
       });
-    });
+    };
 
-    socket.on('error', (data) => {
+    const handleJoinedRoom = (data: any) => {
+      console.log('✅ Successfully joined room:', data);
+      toast({
+        title: 'Joined Room',
+        description: data.message,
+      });
+      setIsJoining(false);
+    };
+
+    const handleError = (data: any) => {
+      console.error('❌ Socket error:', data);
       toast({
         title: 'Error',
         description: data.message,
@@ -96,97 +118,124 @@ export function RoomCard({ room, onRoomUpdated, onRoomDeleted }: RoomCardProps) 
       });
       setIsJoining(false);
       setIsStarting(false);
-    });
+    };
+
+    socket.on('room-update', handleRoomUpdate);
+    socket.on('exam-started', handleExamStarted);
+    socket.on('exam-ended', handleExamEnded);
+    socket.on('student-submitted', handleStudentSubmitted);
+    socket.on('joined-room', handleJoinedRoom);
+    socket.on('error', handleError);
 
     return () => {
-      socket.off('room-update');
-      socket.off('exam-started');
-      socket.off('exam-ended');
-      socket.off('student-submitted');
-      socket.off('error');
+      console.log('🧹 Cleaning up socket listeners for room:', room.roomCode);
+      socket.off('room-update', handleRoomUpdate);
+      socket.off('exam-started', handleExamStarted);
+      socket.off('exam-ended', handleExamEnded);
+      socket.off('student-submitted', handleStudentSubmitted);
+      socket.off('joined-room', handleJoinedRoom);
+      socket.off('error', handleError);
     };
-  }, [socket, isConnected, room, onRoomUpdated, toast]);
+  }, [socket, room, onRoomUpdated, toast]);
 
   const handleJoinAsTeacher = async () => {
-    if (!socket || isJoining) return;
-
-    setIsJoining(true);
-    try {
-      // If socket exists but isn't connected, attempt to (re)connect first
-      if (socket && !isConnected) {
-        // try to connect and wait up to 3s
-        socket.connect();
-        await new Promise<void>((resolve, reject) => {
-          const t = setTimeout(() => {
-            if (socket) socket.off('connect', onConnect);
-            reject(new Error('Socket connect timeout'));
-          }, 3000);
-          function onConnect() {
-            clearTimeout(t);
-            if (socket) socket.off('connect', onConnect);
-            resolve();
-          }
-          if (socket) socket.on('connect', onConnect);
+    if (!socket || !authUser) {
+      console.warn('Cannot join: socket =', socket, 'authUser =', authUser);
+      if (!authUser) {
+        toast({ 
+          title: 'Authentication Error', 
+          description: 'Please login again.', 
+          variant: 'destructive' 
+        });
+      } else if (!socket) {
+        toast({ 
+          title: 'Socket not available', 
+          description: 'Please refresh the page to initialize socket connection.', 
+          variant: 'destructive' 
         });
       }
-
-      const user = authUser || JSON.parse(localStorage.getItem('user') || '{}');
-
-      joinRoom({
-        roomCode: room.roomCode,
-        userId: user._id,
-        userName: user.name,
-        role: 'teacher',
-      });
-    } catch (err: any) {
-      console.error('Failed to connect socket before joining:', err);
-      toast({ title: 'Error', description: 'Unable to connect to server. Try reloading.', variant: 'destructive' });
+      return;
     }
 
-    // Set a timeout to reset loading state
-    setTimeout(() => {
-      setIsJoining(false);
-    }, 3000);
+    // Open monitor dialog
+    setShowMonitor(true);
   };
 
-  const handleStartExam = () => {
-    (async () => {
-      if (!socket || isStarting) return;
-
-      setIsStarting(true);
-
-      try {
-        if (socket && !isConnected) {
-          socket.connect();
-          await new Promise<void>((resolve, reject) => {
-            const t = setTimeout(() => {
-              if (socket) socket.off('connect', onConnect);
-              reject(new Error('Socket connect timeout'));
-            }, 3000);
-            function onConnect() {
-              clearTimeout(t);
-              if (socket) socket.off('connect', onConnect);
-              resolve();
-            }
-            if (socket) socket.on('connect', onConnect);
-          });
-        }
-
-        const user = authUser || JSON.parse(localStorage.getItem('user') || '{}');
-
-        startExam({
-          roomCode: room.roomCode,
-          teacherId: user._id,
+  const handleStartExam = async () => {
+    if (!socket || isStarting) {
+      console.warn('Cannot start exam: socket =', socket, 'isStarting =', isStarting);
+      if (!socket) {
+        toast({ 
+          title: 'Socket not available', 
+          description: 'Please refresh the page to initialize socket connection.', 
+          variant: 'destructive' 
         });
-
-        // reset loading after short delay (UI will update from socket events)
-        setTimeout(() => setIsStarting(false), 3000);
-      } catch (err: any) {
-        console.error('Failed to connect socket before starting exam:', err);
-        toast({ title: 'Error', description: 'Unable to connect to server. Try reloading.', variant: 'destructive' });
-        setIsStarting(false);
       }
-    })();
+      return;
+    }
+
+    setIsStarting(true);
+    console.log('🏁 Starting exam, socket status:', { connected: socket.connected, id: socket.id });
+
+    try {
+      // If socket exists but isn't connected, attempt to (re)connect first
+      if (!socket.connected) {
+        console.log('🔄 Socket not connected, attempting to connect...');
+        socket.connect();
+        
+        // Wait for connection
+        const socketRef = socket; // Keep reference to avoid null checks
+        await new Promise<void>((resolve, reject) => {
+          const t = setTimeout(() => {
+            socketRef.off('connect', onConnect);
+            reject(new Error('Socket connect timeout'));
+          }, 5000); // Increased timeout to 5s
+          
+          function onConnect() {
+            console.log('✅ Socket connected successfully');
+            clearTimeout(t);
+            socketRef.off('connect', onConnect);
+            resolve();
+          }
+          
+          socketRef.on('connect', onConnect);
+        });
+      }
+
+      if (!authUser) {
+        console.error('❌ No authenticated user found');
+        toast({ 
+          title: 'Authentication Error', 
+          description: 'Please login again.', 
+          variant: 'destructive' 
+        });
+        setIsStarting(false);
+        return;
+      }
+
+      console.log('🚀 Starting exam in room:', { roomCode: room.roomCode, teacherId: authUser._id });
+
+      startExam({
+        roomCode: room.roomCode,
+        teacherId: authUser._id,
+      });
+
+      toast({
+        title: 'Starting exam...',
+        description: 'Initializing exam for all students',
+      });
+
+      // Reset loading after short delay (UI will update from socket events)
+      setTimeout(() => setIsStarting(false), 3000);
+    } catch (err: any) {
+      console.error('❌ Failed to start exam:', err);
+      toast({ 
+        title: 'Error Starting Exam', 
+        description: err.message || 'Unable to connect to server. Please try again.', 
+        variant: 'destructive' 
+      });
+      setIsStarting(false);
+    }
   };
 
   const handleCopyRoomCode = () => {
@@ -236,10 +285,16 @@ export function RoomCard({ room, onRoomUpdated, onRoomDeleted }: RoomCardProps) 
     <Card className="w-full">
       <CardHeader>
         <div className="flex items-start justify-between">
-          <div>
+          <div className="flex-1">
             <CardTitle className="flex items-center gap-2">
               {room.title}
               {getStatusBadge()}
+              {/* Socket connection indicator */}
+              {socket && (
+                <span className={`inline-flex h-2 w-2 rounded-full ${
+                  isConnected ? 'bg-green-500' : 'bg-yellow-500'
+                }`} title={isConnected ? 'Socket connected' : 'Socket connecting...'} />
+              )}
             </CardTitle>
             <CardDescription>
               {room.examQuizId.title} • {room.examQuizId.questions.length} questions • {room.duration} minutes
@@ -318,23 +373,19 @@ export function RoomCard({ room, onRoomUpdated, onRoomDeleted }: RoomCardProps) 
               <Button
                 onClick={handleJoinAsTeacher}
                 // allow clicking to attempt reconnect if socket exists; only block when there is no socket instance
-                disabled={isJoining || !socket}
+                disabled={!socket || !authUser}
                 variant="outline"
                 size="sm"
-                className="flex items-center gap-1"
+                className="flex items-center gap-2"
               >
-                {isJoining ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <Eye className="h-3 w-3" />
-                )}
-                {isJoining ? 'Joining...' : 'Monitor'}
+                <Eye className="h-3 w-3" />
+                Monitor
               </Button>
               
               <Button
                 onClick={handleStartExam}
                 // allow clicking to attempt reconnect if socket exists; only block when there is no socket instance
-                disabled={isStarting || !socket}
+                disabled={isStarting || !socket || !authUser}
                 size="sm"
                 className="flex items-center gap-1"
               >
@@ -407,6 +458,18 @@ export function RoomCard({ room, onRoomUpdated, onRoomDeleted }: RoomCardProps) 
           )}
         </div>
       </CardContent>
+
+      {/* Room Monitor Dialog */}
+      {authUser && (
+        <RoomMonitorDialog
+          open={showMonitor}
+          onOpenChange={setShowMonitor}
+          room={room}
+          teacherId={authUser._id}
+          teacherName={authUser.name}
+          onStartExam={handleStartExam}
+        />
+      )}
     </Card>
   );
 }

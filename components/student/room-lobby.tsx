@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useSocket } from '@/lib/socket-context';
+import { useAuth } from '@/lib/auth-context';
 import { 
   Users, 
   Clock, 
@@ -23,10 +24,9 @@ interface Room {
   roomCode: string;
   status: 'waiting' | 'running' | 'ended';
   duration: number;
-  quizId: {
+  examQuizId?: {
     _id: string;
     title: string;
-    questionCount: number;
     questions: any[];
   };
   teacherId: {
@@ -53,12 +53,31 @@ export function StudentRoomLobby({ roomCode }: StudentRoomLobbyProps) {
   const [loading, setLoading] = useState(true);
   const [examStarting, setExamStarting] = useState(false);
   const { socket, isConnected } = useSocket();
+  const { user: authUser, token } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 
   useEffect(() => {
     fetchRoomData();
   }, [roomCode]);
+
+  // Join socket room when component mounts
+  useEffect(() => {
+    if (!socket || !isConnected || !authUser || !roomCode) return;
+
+    console.log('🔌 Student joining socket room:', roomCode);
+    socket.emit('join-room', {
+      roomCode,
+      userId: authUser._id,
+      userName: authUser.name,
+      role: 'student',
+    });
+
+    return () => {
+      // Optionally leave room on unmount
+      console.log('👋 Student leaving socket room:', roomCode);
+    };
+  }, [socket, isConnected, authUser, roomCode]);
 
   useEffect(() => {
     if (!socket || !isConnected) return;
@@ -116,7 +135,10 @@ export function StudentRoomLobby({ roomCode }: StudentRoomLobbyProps) {
 
   const fetchRoomData = async () => {
     try {
-      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Please login to continue');
+      }
+
       const response = await fetch(`/api/rooms/${roomCode}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -236,9 +258,9 @@ export function StudentRoomLobby({ roomCode }: StudentRoomLobbyProps) {
             <div className="flex items-center gap-2">
               <BookOpen className="h-4 w-4 text-blue-500" />
               <div className="text-sm">
-                <p className="font-medium">{room.quizId.title}</p>
+                <p className="font-medium">{room.examQuizId?.title || 'Exam'}</p>
                 <p className="text-muted-foreground">
-                  {room.quizId.questionCount} questions
+                  {room.examQuizId?.questions?.length || 0} questions
                 </p>
               </div>
             </div>
@@ -348,7 +370,7 @@ export function StudentRoomLobby({ roomCode }: StudentRoomLobbyProps) {
             <li>• Stay on this page until the exam starts</li>
             <li>• Make sure you have a stable internet connection</li>
             <li>• The exam will start automatically when your teacher begins it</li>
-            <li>• You'll have {room.duration} minutes to complete {room.quizId.questionCount} questions</li>
+            <li>• You'll have {room.duration} minutes to complete {room.examQuizId?.questions?.length || 0} questions</li>
             <li>• Your answers will be saved automatically</li>
           </ul>
         </CardContent>
