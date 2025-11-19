@@ -1,15 +1,27 @@
 import Redis from 'ioredis';
 
-const redis = new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD,
+// Upstash Redis configuration
+const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+const isUpstash = redisUrl.includes('upstash.io');
+
+const redis = new Redis(redisUrl, {
   maxRetriesPerRequest: 3,
-  lazyConnect: true,
+  retryStrategy: (times) => {
+    const delay = Math.min(times * 50, 2000);
+    return delay;
+  },
+  // Enable TLS for Upstash, disable for local Redis
+  tls: isUpstash ? {
+    rejectUnauthorized: false
+  } : undefined,
+  // Connection timeout
+  connectTimeout: 10000,
+  // Keep alive
+  keepAlive: 30000,
 });
 
 redis.on('connect', () => {
-  console.log('✅ Connected to Redis');
+  console.log(`✅ Connected to Redis${isUpstash ? ' (Upstash)' : ' (Local)'}`);
 });
 
 redis.on('error', (error) => {

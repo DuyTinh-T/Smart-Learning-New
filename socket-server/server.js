@@ -13,6 +13,209 @@ app.use(cors({
   credentials: true
 }));
 
+// Welcome page
+app.get('/', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Socket.IO Server - Smart Learning Platform</title>
+      <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+        }
+        .container {
+          background: white;
+          border-radius: 20px;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+          max-width: 600px;
+          width: 100%;
+          padding: 40px;
+          text-align: center;
+        }
+        .icon {
+          font-size: 64px;
+          margin-bottom: 20px;
+          animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.1); }
+        }
+        h1 {
+          color: #333;
+          font-size: 32px;
+          margin-bottom: 10px;
+        }
+        .subtitle {
+          color: #666;
+          font-size: 18px;
+          margin-bottom: 30px;
+        }
+        .status {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          background: #10b981;
+          color: white;
+          padding: 10px 20px;
+          border-radius: 50px;
+          font-weight: 600;
+          margin-bottom: 30px;
+        }
+        .status-dot {
+          width: 8px;
+          height: 8px;
+          background: white;
+          border-radius: 50%;
+          animation: blink 1.5s infinite;
+        }
+        @keyframes blink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
+        }
+        .info-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 15px;
+          margin-bottom: 30px;
+        }
+        .info-card {
+          background: #f8fafc;
+          padding: 15px;
+          border-radius: 10px;
+          border: 1px solid #e2e8f0;
+        }
+        .info-label {
+          color: #64748b;
+          font-size: 12px;
+          text-transform: uppercase;
+          margin-bottom: 5px;
+          font-weight: 600;
+        }
+        .info-value {
+          color: #1e293b;
+          font-size: 16px;
+          font-weight: 600;
+        }
+        .endpoints {
+          text-align: left;
+          background: #f8fafc;
+          padding: 20px;
+          border-radius: 10px;
+          margin-bottom: 20px;
+        }
+        .endpoints h3 {
+          color: #333;
+          margin-bottom: 15px;
+          font-size: 18px;
+        }
+        .endpoint {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 10px;
+          background: white;
+          border-radius: 8px;
+          margin-bottom: 10px;
+          border: 1px solid #e2e8f0;
+        }
+        .method {
+          background: #667eea;
+          color: white;
+          padding: 4px 12px;
+          border-radius: 4px;
+          font-size: 12px;
+          font-weight: 600;
+        }
+        .path {
+          color: #1e293b;
+          font-family: 'Courier New', monospace;
+          font-weight: 600;
+        }
+        .footer {
+          color: #94a3b8;
+          font-size: 14px;
+        }
+        .footer a {
+          color: #667eea;
+          text-decoration: none;
+          font-weight: 600;
+        }
+        .footer a:hover {
+          text-decoration: underline;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="icon">🚀</div>
+        <h1>Socket.IO Server</h1>
+        <p class="subtitle">Smart Learning Platform - Real-time Communication</p>
+        
+        <div class="status">
+          <span class="status-dot"></span>
+          <span>Server Running</span>
+        </div>
+
+        <div class="info-grid">
+          <div class="info-card">
+            <div class="info-label">Environment</div>
+            <div class="info-value">${process.env.NODE_ENV || 'development'}</div>
+          </div>
+          <div class="info-card">
+            <div class="info-label">Port</div>
+            <div class="info-value">${process.env.PORT || 4000}</div>
+          </div>
+          <div class="info-card">
+            <div class="info-label">CORS Origin</div>
+            <div class="info-value">${(process.env.CORS_ORIGIN || 'localhost:3000').replace('https://', '').replace('http://', '')}</div>
+          </div>
+          <div class="info-card">
+            <div class="info-label">Redis</div>
+            <div class="info-value">${process.env.REDIS_URL?.includes('upstash.io') ? 'Upstash' : 'Local'}</div>
+          </div>
+        </div>
+
+        <div class="endpoints">
+          <h3>📡 Available Endpoints</h3>
+          <div class="endpoint">
+            <span class="method">GET</span>
+            <span class="path">/</span>
+            <span style="margin-left: auto; color: #64748b; font-size: 14px;">This page</span>
+          </div>
+          <div class="endpoint">
+            <span class="method">GET</span>
+            <span class="path">/health</span>
+            <span style="margin-left: auto; color: #64748b; font-size: 14px;">Health check</span>
+          </div>
+        </div>
+
+        <div class="footer">
+          <p>Smart Learning Platform © 2025</p>
+          <p style="margin-top: 10px;">
+            Built with <span style="color: #ef4444;">❤️</span> using Socket.IO & Express
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `);
+});
+
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Socket server is running' });
 });
@@ -31,17 +234,28 @@ const io = new Server(httpServer, {
   allowEIO3: true
 });
 
-// Initialize Redis
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+// Initialize Redis (Upstash compatible)
+const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+const isUpstash = redisUrl.includes('upstash.io');
+
+const redis = new Redis(redisUrl, {
   retryStrategy: (times) => {
     const delay = Math.min(times * 50, 2000);
     return delay;
   },
-  maxRetriesPerRequest: 3
+  maxRetriesPerRequest: 3,
+  // Enable TLS for Upstash, disable for local Redis
+  tls: isUpstash ? {
+    rejectUnauthorized: false
+  } : undefined,
+  // Connection timeout
+  connectTimeout: 10000,
+  // Keep alive
+  keepAlive: 30000,
 });
 
 redis.on('connect', () => {
-  console.log('✅ Connected to Redis');
+  console.log(`✅ Connected to Redis${isUpstash ? ' (Upstash)' : ' (Local)'}`);
 });
 
 redis.on('error', (err) => {
