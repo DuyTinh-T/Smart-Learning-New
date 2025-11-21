@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { FileText, Plus, X, CheckCircle2, Circle, Loader2 } from "lucide-react"
+import { FileText, Plus, X, CheckCircle2, Circle, Loader2, Sparkles } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { quizAPI, type CreateQuizData, type QuizQuestion } from "@/lib/api/quiz-api"
@@ -67,6 +67,9 @@ export function CreateQuizDialog() {
   const [selectedLesson, setSelectedLesson] = useState("")
   const [lessons, setLessons] = useState<Lesson[]>([])
   const [loadingLessons, setLoadingLessons] = useState(false)
+  const [aiGenerating, setAiGenerating] = useState(false)
+  const [showAiTab, setShowAiTab] = useState(true)
+  const [aiNumQuestions, setAiNumQuestions] = useState("5")
   const [quizForm, setQuizForm] = useState({
     title: "",
     timeLimit: "",
@@ -98,6 +101,8 @@ export function CreateQuizDialog() {
       maxAttempts: ""
     })
     setActiveTab("multiple-choice")
+    setShowAiTab(true)
+    setAiNumQuestions("5")
   }
 
   const loadCourses = async () => {
@@ -363,6 +368,111 @@ export function CreateQuizDialog() {
     }
   }
 
+  const generateQuizWithAI = async () => {
+    if (!selectedLesson) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Vui lòng chọn lesson trước khi tạo quiz với AI"
+      })
+      return
+    }
+
+    // Get lesson and course details for context
+    const selectedLessonData = lessons.find(l => l._id === selectedLesson)
+    const selectedCourseData = courses.find(c => c._id === selectedCourse)
+
+    if (!selectedLessonData || !selectedCourseData) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Không tìm thấy thông tin lesson hoặc course"
+      })
+      return
+    }
+
+    const numQuestions = parseInt(aiNumQuestions) || 5
+
+    setAiGenerating(true)
+    try {
+      const topic = `${selectedCourseData.title} - ${selectedLessonData.title}`
+      
+      const response = await fetch('/api/ai/generate-lesson', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          topic: topic,
+          level: 'intermediate',
+          numQuestions: numQuestions,
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Không thể tạo quiz với AI')
+      }
+
+      // Process AI-generated questions
+      const aiData = data.data
+      const newQuestions: Question[] = []
+
+      // Auto-fill quiz title if empty
+      if (!quizForm.title.trim()) {
+        setQuizForm(prev => ({
+          ...prev,
+          title: `Quiz: ${selectedLessonData.title}`
+        }))
+      }
+
+      if (aiData.quiz && Array.isArray(aiData.quiz)) {
+        for (const q of aiData.quiz) {
+          if (activeTab === "multiple-choice") {
+            // Create multiple choice question
+            newQuestions.push({
+              type: "multiple-choice",
+              question: q.question || q.text || "",
+              options: q.options || ["Đúng", "Sai"],
+              correctAnswer: q.correctAnswer || 0
+            })
+          } else {
+            // Create essay question
+            newQuestions.push({
+              type: "essay",
+              question: q.question || q.text || "",
+              maxWords: 500
+            })
+          }
+        }
+      }
+
+      if (newQuestions.length === 0) {
+        throw new Error('AI không tạo được câu hỏi. Vui lòng thử lại.')
+      }
+
+      // Add generated questions to existing ones
+      setQuestions([...questions, ...newQuestions])
+      
+      toast({
+        title: "✨ Thành công!",
+        description: `Đã tạo ${newQuestions.length} câu hỏi với AI. Bạn có thể chỉnh sửa trước khi lưu.`
+      })
+
+      // Hide AI tab after generating
+      setShowAiTab(false)
+
+    } catch (error: any) {
+      console.error('AI generation error:', error)
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: error.message || "Không thể tạo quiz với AI"
+      })
+    } finally {
+      setAiGenerating(false)
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -492,6 +602,88 @@ export function CreateQuizDialog() {
                   </p>
                 </div>
               </div>
+
+              {/* AI Generation Card */}
+              {showAiTab && selectedLesson && (
+                <Card className="border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20">
+                  <CardContent className="pt-6">
+                    <div className="flex items-start gap-3">
+                      <Sparkles className="h-6 w-6 text-purple-600 mt-1 flex-shrink-0" />
+                      <div className="flex-1 space-y-4">
+                        <div>
+                          <h3 className="font-semibold text-lg mb-2">✨ Tạo Câu Hỏi Với AI</h3>
+                          <p className="text-sm text-muted-foreground mb-4">
+                            AI sẽ tự động tạo câu hỏi dựa trên nội dung của <strong>{lessons.find(l => l._id === selectedLesson)?.title}</strong> trong khóa học <strong>{courses.find(c => c._id === selectedCourse)?.title}</strong>
+                          </p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label>Loại Câu Hỏi</Label>
+                            <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                variant={activeTab === "multiple-choice" ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setActiveTab("multiple-choice")}
+                                className="flex-1"
+                              >
+                                Trắc Nghiệm
+                              </Button>
+                              <Button
+                                type="button"
+                                variant={activeTab === "essay" ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setActiveTab("essay")}
+                                className="flex-1"
+                              >
+                                Tự Luận
+                              </Button>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="ai-num-questions">Số Câu Hỏi</Label>
+                            <Input
+                              id="ai-num-questions"
+                              type="number"
+                              min="1"
+                              max="20"
+                              value={aiNumQuestions}
+                              onChange={(e) => setAiNumQuestions(e.target.value)}
+                              placeholder="5"
+                            />
+                          </div>
+                        </div>
+
+                        <Button
+                          type="button"
+                          onClick={generateQuizWithAI}
+                          disabled={aiGenerating || !selectedLesson}
+                          className="w-full"
+                          size="lg"
+                        >
+                          {aiGenerating ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Đang tạo {aiNumQuestions} câu hỏi với AI...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="h-4 w-4 mr-2" />
+                              Tạo {aiNumQuestions} Câu Hỏi {activeTab === "multiple-choice" ? "Trắc Nghiệm" : "Tự Luận"}
+                            </>
+                          )}
+                        </Button>
+
+                        <p className="text-xs text-muted-foreground text-center">
+                          Sau khi tạo, bạn có thể chỉnh sửa các câu hỏi hoặc thêm câu hỏi mới
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as QuestionType)} className="w-full">
                 <div className="flex items-center justify-between mb-4">

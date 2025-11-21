@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -191,11 +193,14 @@ export function ProjectSubmissionView({
       {projectDescription && (
         <Card>
           <CardHeader>
-            <CardTitle>Project Instructions</CardTitle>
+            <CardTitle>📋 Yêu Cầu Đề Bài</CardTitle>
+            <CardDescription>Đọc kỹ hướng dẫn trước khi bắt đầu</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="prose max-w-none whitespace-pre-wrap text-sm">
-              {projectDescription}
+            <div className="prose prose-sm dark:prose-invert max-w-none">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {projectDescription}
+              </ReactMarkdown>
             </div>
           </CardContent>
         </Card>

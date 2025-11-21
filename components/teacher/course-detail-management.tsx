@@ -1,6 +1,8 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -19,7 +21,9 @@ import {
   Clock,
   Users,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Sparkles,
+  Loader2
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { courseApi, moduleApi, lessonApi, handleApiError } from "@/lib/api/course-api"
@@ -42,6 +46,7 @@ import { useAuth } from "@/lib/auth-context"
 import { QuizView } from "@/components/quiz/quiz-view"
 import { TeacherProjectSubmissions } from "@/components/teacher/teacher-project-submissions"
 import { ProjectSubmissionView } from "@/components/project/project-submission-view"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface Course {
   _id: string;
@@ -128,6 +133,13 @@ export function CourseDetailManagement({ courseId, onBack }: CourseDetailManagem
   const [lessonDialogOpen, setLessonDialogOpen] = useState(false)
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null)
   const [selectedModuleId, setSelectedModuleId] = useState<string>('')
+  const [aiLessonLoading, setAiLessonLoading] = useState(false)
+  const [lessonActiveTab, setLessonActiveTab] = useState("manual")
+  const [aiLessonTopic, setAiLessonTopic] = useState("")
+  const [aiLessonConfig, setAiLessonConfig] = useState({
+    difficulty: 'intermediate' as 'beginner' | 'intermediate' | 'advanced',
+    type: 'text' as 'text' | 'video' | 'quiz' | 'project'
+  })
   const [lessonFormData, setLessonFormData] = useState({
     title: '',
     type: 'text' as 'text' | 'video' | 'quiz' | 'project',
@@ -256,6 +268,7 @@ export function CourseDetailManagement({ courseId, onBack }: CourseDetailManagem
         duration: lesson.duration || 0,
         difficulty: lesson.difficulty || 'beginner'
       })
+      setLessonActiveTab("manual")
     } else {
       setEditingLesson(null)
       setLessonFormData({
@@ -266,8 +279,94 @@ export function CourseDetailManagement({ courseId, onBack }: CourseDetailManagem
         duration: 0,
         difficulty: 'beginner'
       })
+      setLessonActiveTab("manual")
+      setAiLessonTopic("")
+      setAiLessonConfig({
+        difficulty: 'intermediate',
+        type: 'text'
+      })
     }
     setLessonDialogOpen(true)
+  }
+
+  const generateLessonWithAI = async () => {
+    if (!aiLessonTopic.trim()) {
+      toast({
+        title: "Lỗi",
+        description: "Vui lòng nhập chủ đề bài học",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setAiLessonLoading(true)
+    try {
+      // Build context-rich topic
+      let contextTopic = aiLessonTopic
+      if (course) {
+        contextTopic = `${course.title} - ${aiLessonTopic}`
+      }
+
+      // Build custom prompt based on lesson type
+      let customPrompt = contextTopic
+      if (aiLessonConfig.type === 'project') {
+        customPrompt = `Tạo đề bài tập thực hành về: ${contextTopic}. Yêu cầu: Mô tả mục tiêu, yêu cầu chi tiết, hướng dẫn thực hiện, tiêu chí đánh giá.`
+      } else if (aiLessonConfig.type === 'video') {
+        customPrompt = `Tạo nội dung bài học video về: ${contextTopic}. Bao gồm: Tóm tắt nội dung, các điểm chính cần học, gợi ý video trên YouTube/Vimeo.`
+      } else if (aiLessonConfig.type === 'quiz') {
+        customPrompt = `Tạo bài quiz về: ${contextTopic}. Tạo 5 câu hỏi trắc nghiệm với 4 lựa chọn, đánh dấu đáp án đúng.`
+      } else {
+        customPrompt = `Tạo bài giảng lý thuyết về: ${contextTopic}. Bao gồm: Giới thiệu, nội dung chi tiết, ví dụ minh họa, tóm tắt.`
+      }
+
+      const response = await fetch('/api/ai/generate-lesson', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          topic: customPrompt,
+          level: aiLessonConfig.difficulty,
+          numQuestions: 5,
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Không thể tạo bài học với AI')
+      }
+
+      // Auto-fill form with AI-generated data
+      const aiData = data.data
+      
+      // Set lesson data from AI response
+      setLessonFormData(prev => ({
+        ...prev,
+        title: aiData.lessonTitle || aiLessonTopic,
+        type: aiLessonConfig.type,
+        content: aiData.content || '',
+        videoUrl: aiLessonConfig.type === 'video' ? '' : prev.videoUrl,
+        duration: 30,
+        difficulty: aiLessonConfig.difficulty
+      }))
+
+      toast({
+        title: "✨ Thành công!",
+        description: "Nội dung bài học đã được tạo bởi AI. Bạn có thể chỉnh sửa trước khi lưu.",
+      })
+
+      // Switch to manual tab to show generated content
+      setLessonActiveTab("manual")
+
+    } catch (error: any) {
+      console.error('AI generation error:', error)
+      toast({
+        title: "Lỗi",
+        description: error.message || "Không thể tạo bài học với AI",
+        variant: "destructive",
+      })
+    } finally {
+      setAiLessonLoading(false)
+    }
   }
 
   const handleLessonSubmit = async () => {
@@ -685,16 +784,142 @@ export function CourseDetailManagement({ courseId, onBack }: CourseDetailManagem
 
       {/* Lesson Dialog */}
       <Dialog open={lessonDialogOpen} onOpenChange={setLessonDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingLesson ? 'Chỉnh Sửa Bài Học' : 'Tạo Bài Học Mới'}
             </DialogTitle>
             <DialogDescription>
-              {editingLesson ? 'Cập nhật nội dung bài học' : 'Thêm bài học mới vào module'}
+              {editingLesson ? 'Cập nhật nội dung bài học' : 'Tạo thủ công hoặc dùng AI để tạo bài học'}
             </DialogDescription>
           </DialogHeader>
-          
+
+          <Tabs value={lessonActiveTab} onValueChange={setLessonActiveTab} className="mt-4">
+            {!editingLesson && (
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="ai">
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  AI Generate
+                </TabsTrigger>
+                <TabsTrigger value="manual">Nhập Thủ Công</TabsTrigger>
+              </TabsList>
+            )}
+
+            {!editingLesson && (
+              <TabsContent value="ai" className="space-y-4 mt-4">
+                <div className="border rounded-lg p-6 space-y-4 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20">
+                  <div className="flex items-start gap-3">
+                    <Sparkles className="h-5 w-5 text-purple-600 mt-1 flex-shrink-0" />
+                    <div className="flex-1 space-y-4">
+                      <div>
+                        <h3 className="font-semibold text-lg mb-2">✨ Tạo Bài Học Với AI</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          AI sẽ tạo nội dung bài học dựa trên chủ đề và cấu hình bạn chọn. 
+                          {course && <> Trong khóa học: <strong>{course.title}</strong></>}
+                        </p>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="aiLessonTopic">Chủ Đề Bài Học *</Label>
+                          <Input
+                            id="aiLessonTopic"
+                            placeholder="VD: React Hooks, Python Functions, CSS Flexbox..."
+                            value={aiLessonTopic}
+                            onChange={(e) => setAiLessonTopic(e.target.value)}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                generateLessonWithAI()
+                              }
+                            }}
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label htmlFor="ai-lesson-type">Loại Bài Học</Label>
+                            <select
+                              id="ai-lesson-type"
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                              value={aiLessonConfig.type}
+                              onChange={(e) => setAiLessonConfig(prev => ({ 
+                                ...prev, 
+                                type: e.target.value as 'text' | 'video' | 'quiz' | 'project'
+                              }))}
+                            >
+                              <option value="text">📝 Lý Thuyết</option>
+                              <option value="video">🎥 Video</option>
+                              <option value="quiz">❓ Trắc Nghiệm</option>
+                              <option value="project">🎯 Bài Tập Thực Hành</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <Label htmlFor="ai-lesson-difficulty">Độ Khó</Label>
+                            <select
+                              id="ai-lesson-difficulty"
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                              value={aiLessonConfig.difficulty}
+                              onChange={(e) => setAiLessonConfig(prev => ({ 
+                                ...prev, 
+                                difficulty: e.target.value as 'beginner' | 'intermediate' | 'advanced'
+                              }))}
+                            >
+                              <option value="beginner">🌱 Cơ Bản</option>
+                              <option value="intermediate">📚 Trung Bình</option>
+                              <option value="advanced">🚀 Nâng Cao</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <Button
+                          type="button"
+                          onClick={generateLessonWithAI}
+                          disabled={aiLessonLoading || !aiLessonTopic.trim()}
+                          className="w-full"
+                          size="lg"
+                        >
+                          {aiLessonLoading ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Đang tạo với AI...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="h-4 w-4 mr-2" />
+                              {aiLessonConfig.type === 'project' && 'Tạo Bài Tập Thực Hành'}
+                              {aiLessonConfig.type === 'quiz' && 'Tạo Bài Trắc Nghiệm'}
+                              {aiLessonConfig.type === 'video' && 'Tạo Bài Học Video'}
+                              {aiLessonConfig.type === 'text' && 'Tạo Bài Giảng'}
+                            </>
+                          )}
+                        </Button>
+
+                        <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3">
+                          <p className="text-xs text-blue-700 dark:text-blue-300">
+                            <strong>💡 Xem trước:</strong> AI sẽ tạo 
+                            <strong>
+                              {aiLessonConfig.type === 'project' && ' đề bài tập thực hành'}
+                              {aiLessonConfig.type === 'quiz' && ' câu hỏi trắc nghiệm'}
+                              {aiLessonConfig.type === 'video' && ' nội dung video lesson'}
+                              {aiLessonConfig.type === 'text' && ' bài giảng lý thuyết'}
+                            </strong> mức độ <strong>{aiLessonConfig.difficulty === 'beginner' ? 'cơ bản' : 
+                                                      aiLessonConfig.difficulty === 'intermediate' ? 'trung bình' : 'nâng cao'}</strong> về "{aiLessonTopic || '...'}"
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-sm text-muted-foreground text-center">
+                  Sau khi tạo, chuyển sang tab "Nhập Thủ Công" để xem và chỉnh sửa
+                </div>
+              </TabsContent>
+            )}
+
+            <TabsContent value="manual" className="space-y-4 mt-4">
           <div className="space-y-4">
             <div>
               <Label htmlFor="lesson-title">Tiêu đề Bài Học *</Label>
@@ -774,10 +999,16 @@ export function CourseDetailManagement({ courseId, onBack }: CourseDetailManagem
               </div>
             )}
             
-            <div>
-              <Label htmlFor="lesson-content">
-                {lessonFormData.type === 'video' ? 'Mô tả bài học' : 'Nội dung'}
-              </Label>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="lesson-content">
+                  {lessonFormData.type === 'video' ? 'Mô tả bài học' : 'Nội dung'}
+                </Label>
+                <span className="text-xs text-muted-foreground">
+                  Hỗ trợ Markdown format
+                </span>
+              </div>
+              
               <Textarea
                 id="lesson-content"
                 value={lessonFormData.content}
@@ -787,12 +1018,28 @@ export function CourseDetailManagement({ courseId, onBack }: CourseDetailManagem
                     ? "Mô tả nội dung video, mục tiêu học tập..." 
                     : "Nội dung chi tiết của bài học..."
                 }
-                rows={6}
+                rows={10}
+                className="font-mono text-sm"
               />
+              
+              {lessonFormData.content && (
+                <div className="border rounded-lg p-4 bg-gray-50 dark:bg-gray-900">
+                  <p className="text-xs font-semibold text-muted-foreground mb-2">
+                    👁️ Preview:
+                  </p>
+                  <div className="prose prose-sm dark:prose-invert max-w-none">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {lessonFormData.content}
+                    </ReactMarkdown>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
+          </TabsContent>
+          </Tabs>
           
-          <DialogFooter>
+          <DialogFooter className="mt-4">
             <Button variant="outline" onClick={() => setLessonDialogOpen(false)}>
               Hủy
             </Button>
@@ -913,12 +1160,14 @@ export function CourseDetailManagement({ courseId, onBack }: CourseDetailManagem
                   )}
                   
                   {(previewingLesson.type === 'text' || previewingLesson.type === 'video') && (
-                    <div className="prose max-w-none">
-                      <div className="whitespace-pre-wrap">
-                        {previewingLesson.content && previewingLesson.content.trim() !== "" 
-                          ? previewingLesson.content 
-                          : "No content available for this lesson."}
-                      </div>
+                    <div className="prose prose-lg dark:prose-invert max-w-none">
+                      {previewingLesson.content && previewingLesson.content.trim() !== "" ? (
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {previewingLesson.content}
+                        </ReactMarkdown>
+                      ) : (
+                        <p className="text-muted-foreground">No content available for this lesson.</p>
+                      )}
                     </div>
                   )}
                 </div>

@@ -124,3 +124,82 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom Markdown/Prose styles */
+@layer components {
+  .prose {
+    @apply text-foreground;
+  }
+  
+  .prose h1 {
+    @apply text-3xl font-bold mt-6 mb-4;
+  }
+  
+  .prose h2 {
+    @apply text-2xl font-bold mt-5 mb-3;
+  }
+  
+  .prose h3 {
+    @apply text-xl font-semibold mt-4 mb-2;
+  }
+  
+  .prose p {
+    @apply my-3 leading-7;
+  }
+  
+  .prose ul {
+    @apply list-disc pl-6 my-3 space-y-2;
+  }
+  
+  .prose ol {
+    @apply list-decimal pl-6 my-3 space-y-2;
+  }
+  
+  .prose li {
+    @apply my-1;
+  }
+  
+  .prose strong {
+    @apply font-bold text-foreground;
+  }
+  
+  .prose em {
+    @apply italic;
+  }
+  
+  .prose code {
+    @apply bg-muted px-1.5 py-0.5 rounded text-sm font-mono;
+  }
+  
+  .prose pre {
+    @apply bg-muted p-4 rounded-lg overflow-x-auto my-4;
+  }
+  
+  .prose pre code {
+    @apply bg-transparent p-0;
+  }
+  
+  .prose blockquote {
+    @apply border-l-4 border-primary pl-4 italic my-4;
+  }
+  
+  .prose a {
+    @apply text-primary hover:underline;
+  }
+  
+  .prose table {
+    @apply w-full my-4 border-collapse;
+  }
+  
+  .prose th {
+    @apply bg-muted font-semibold p-2 border;
+  }
+  
+  .prose td {
+    @apply p-2 border;
+  }
+  
+  .prose hr {
+    @apply my-6 border-border;
+  }
+}

@@ -1,6 +1,8 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -542,9 +544,17 @@ export function StudentCourseView({ courseId, onBack }: StudentCourseViewProps) 
             </div>
           )}
 
-          <div className="whitespace-pre-wrap">
-            {selectedLesson.content || "Nội dung bài học sẽ được hiển thị ở đây."}
-          </div>
+          {selectedLesson.type !== 'quiz' && selectedLesson.type !== 'project' && (
+            <div className="prose prose-lg dark:prose-invert max-w-none">
+              {selectedLesson.content ? (
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {selectedLesson.content}
+                </ReactMarkdown>
+              ) : (
+                <p className="text-muted-foreground">Nội dung bài học sẽ được hiển thị ở đây.</p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Lesson Actions */}
