@@ -52,6 +52,15 @@ export async function GET(
 
     // Get detailed progress info
     const courseData = enrollment.course as any
+    
+    // Check if course still exists (not deleted)
+    if (!courseData) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Course no longer exists or has been deleted' 
+      }, { status: 404 })
+    }
+    
     const allLessons: any[] = []
     
     // Flatten all lessons with module info
