@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -16,11 +16,12 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Plus, Upload, X, Loader2, Sparkles } from "lucide-react"
+import { Plus, Upload, X, Loader2, Sparkles, Image as ImageIcon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { courseApi, handleApiError, type CreateCourseData } from "@/lib/api/course-api"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { uploadFile } from "@/lib/supabase"
 
 interface FormData {
   title: string;
@@ -36,10 +37,14 @@ export function CreateCourseDialog() {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
   const [modules, setModules] = useState<{ title: string }[]>([])
   const [tagInput, setTagInput] = useState("")
   const [activeTab, setActiveTab] = useState("manual")
   const [aiTopic, setAiTopic] = useState("")
+  const [thumbnailPreview, setThumbnailPreview] = useState<string>("")
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
   const [formData, setFormData] = useState<FormData>({
@@ -54,6 +59,49 @@ export function CreateCourseDialog() {
 
   const updateFormData = (field: keyof FormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select an image file",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please select an image smaller than 5MB",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Save file for later upload
+    setSelectedFile(file)
+
+    // Show preview only (no upload yet)
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setThumbnailPreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const removeThumbnail = () => {
+    setSelectedFile(null)
+    setThumbnailPreview('')
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -71,13 +119,34 @@ export function CreateCourseDialog() {
     setLoading(true)
 
     try {
+      let thumbnailUrl: string | undefined = formData.thumbnail
+
+      // Upload image if user selected one
+      if (selectedFile) {
+        setUploadingImage(true)
+        try {
+          thumbnailUrl = await uploadFile(selectedFile, 'course-thumbnails', 'courses')
+          console.log('✅ Image uploaded:', thumbnailUrl)
+        } catch (uploadError: any) {
+          console.error('Upload error:', uploadError)
+          toast({
+            title: "Image upload failed",
+            description: uploadError.message || "Failed to upload image. Course will be created without thumbnail.",
+          })
+          // Continue creating course without thumbnail
+          thumbnailUrl = undefined
+        } finally {
+          setUploadingImage(false)
+        }
+      }
+
       // Create course data
       const courseData: CreateCourseData = {
         title: formData.title.trim(),
         description: formData.description.trim(),
         category: formData.category,
         tags: formData.tags,
-        thumbnail: formData.thumbnail || undefined,
+        thumbnail: thumbnailUrl,
         price: formData.price,
         visibility: formData.visibility
       }
@@ -125,6 +194,11 @@ export function CreateCourseDialog() {
       })
       setModules([])
       setTagInput('')
+      setThumbnailPreview('')
+      setSelectedFile(null)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
       setOpen(false)
 
     } catch (error: any) {
@@ -322,14 +396,64 @@ export function CreateCourseDialog() {
             <TabsContent value="manual" className="space-y-4 mt-4">
           <div className="grid gap-6 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="thumbnail">Course Thumbnail (URL)</Label>
-              <Input 
-                id="thumbnail" 
-                placeholder="https://example.com/image.jpg" 
-                value={formData.thumbnail}
-                onChange={(e) => updateFormData('thumbnail', e.target.value)}
-              />
-              <span className="text-sm text-muted-foreground">Enter image URL (recommended: 1200x630px)</span>
+              <Label htmlFor="thumbnail">Course Thumbnail</Label>
+              <div className="space-y-3">
+                {thumbnailPreview ? (
+                  <div className="relative">
+                    <div className="relative w-full h-48 border-2 border-dashed rounded-lg overflow-hidden">
+                      <img 
+                        src={thumbnailPreview} 
+                        alt="Thumbnail preview" 
+                        className="w-full h-full object-cover"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="absolute top-2 right-2"
+                        onClick={removeThumbnail}
+                        disabled={uploadingImage || loading}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                      <ImageIcon className="h-3 w-3" />
+                      Image ready. Will be uploaded when you create the course.
+                    </p>
+                  </div>
+                ) : (
+                  <div 
+                    className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <div className="flex flex-col items-center gap-2">
+                      {uploadingImage ? (
+                        <>
+                          <Loader2 className="h-10 w-10 text-muted-foreground animate-spin" />
+                          <p className="text-sm text-muted-foreground">Uploading...</p>
+                        </>
+                      ) : (
+                        <>
+                          <ImageIcon className="h-10 w-10 text-muted-foreground" />
+                          <p className="text-sm font-medium">Click to upload thumbnail</p>
+                          <p className="text-xs text-muted-foreground">PNG, JPG, WEBP or GIF (max. 5MB)</p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+                <Input 
+                  ref={fileInputRef}
+                  id="thumbnail" 
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileChange}
+                  disabled={uploadingImage}
+                />
+              </div>
+              <span className="text-sm text-muted-foreground">Recommended size: 1200x630px</span>
             </div>
 
             <div className="grid gap-2">
@@ -476,12 +600,12 @@ export function CreateCourseDialog() {
             <Button 
               type="submit" 
               className="bg-primary text-primary-foreground hover:bg-primary/90"
-              disabled={loading}
+              disabled={loading || uploadingImage}
             >
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating...
+                  {uploadingImage ? 'Uploading image...' : 'Creating course...'}
                 </>
               ) : (
                 'Create Course'

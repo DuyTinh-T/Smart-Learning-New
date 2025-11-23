@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -14,10 +14,11 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { X, Loader2, Save } from "lucide-react"
+import { X, Loader2, Save, Image as ImageIcon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { courseApi, handleApiError } from "@/lib/api/course-api"
+import { uploadFile, deleteFile } from "@/lib/supabase"
 
 interface Course {
   _id: string;
@@ -49,7 +50,12 @@ interface FormData {
 
 export function EditCourseDialog({ course, open, onOpenChange, onSuccess }: EditCourseDialogProps) {
   const [loading, setLoading] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
   const [tagInput, setTagInput] = useState("")
+  const [thumbnailPreview, setThumbnailPreview] = useState<string>("")
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [originalThumbnail, setOriginalThumbnail] = useState<string>("")
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
   const [formData, setFormData] = useState<FormData>({
@@ -65,21 +71,82 @@ export function EditCourseDialog({ course, open, onOpenChange, onSuccess }: Edit
   // Load course data when dialog opens
   useEffect(() => {
     if (course && open) {
+      const thumbnail = course.thumbnail || ''
       setFormData({
         title: course.title || '',
         description: course.description || '',
         category: course.category || '',
         tags: course.tags || [],
-        thumbnail: course.thumbnail || '',
+        thumbnail: thumbnail,
         price: course.price || 0,
         visibility: course.visibility || 'public'
       })
       setTagInput('')
+      setOriginalThumbnail(thumbnail)
+      setThumbnailPreview(thumbnail)
+      setSelectedFile(null)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     }
   }, [course, open])
 
   const updateFormData = (field: keyof FormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select an image file",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please select an image smaller than 5MB",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Save file for later upload
+    setSelectedFile(file)
+
+    // Show preview only (no upload yet)
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setThumbnailPreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const removeThumbnail = () => {
+    setSelectedFile(null)
+    setThumbnailPreview('')
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  // Helper function to extract file path from Supabase URL
+  const getFilePathFromUrl = (url: string): string | null => {
+    try {
+      // URL format: https://[project].supabase.co/storage/v1/object/public/[bucket]/[path]
+      const match = url.match(/\/storage\/v1\/object\/public\/[^/]+\/(.+)$/)
+      return match ? match[1] : null
+    } catch {
+      return null
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -99,13 +166,49 @@ export function EditCourseDialog({ course, open, onOpenChange, onSuccess }: Edit
     setLoading(true)
 
     try {
+      let thumbnailUrl: string | undefined = formData.thumbnail
+
+      // Handle image upload if user selected a new image
+      if (selectedFile) {
+        setUploadingImage(true)
+        try {
+          // Upload new image
+          thumbnailUrl = await uploadFile(selectedFile, 'course-thumbnails', 'courses')
+          console.log('✅ New image uploaded:', thumbnailUrl)
+
+          // Delete old image if it exists and is from Supabase storage
+          if (originalThumbnail && originalThumbnail.includes('supabase.co/storage')) {
+            const oldFilePath = getFilePathFromUrl(originalThumbnail)
+            if (oldFilePath) {
+              try {
+                await deleteFile(oldFilePath, 'course-thumbnails')
+                console.log('🗑️ Old image deleted:', oldFilePath)
+              } catch (deleteError) {
+                console.warn('Failed to delete old image:', deleteError)
+                // Continue even if delete fails
+              }
+            }
+          }
+        } catch (uploadError: any) {
+          console.error('Upload error:', uploadError)
+          toast({
+            title: "Image upload failed",
+            description: uploadError.message || "Failed to upload image. Course will keep the old thumbnail.",
+          })
+          // Keep the original thumbnail if upload fails
+          thumbnailUrl = originalThumbnail || undefined
+        } finally {
+          setUploadingImage(false)
+        }
+      }
+
       // Update course data
       const updateData = {
         title: formData.title.trim(),
         description: formData.description.trim(),
         category: formData.category,
         tags: formData.tags,
-        thumbnail: formData.thumbnail || undefined,
+        thumbnail: thumbnailUrl,
         price: formData.price,
         visibility: formData.visibility
       }
@@ -216,15 +319,66 @@ export function EditCourseDialog({ course, open, onOpenChange, onSuccess }: Edit
           
           <div className="grid gap-6 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="edit-thumbnail">Course Thumbnail (URL)</Label>
-              <Input 
-                id="edit-thumbnail" 
-                placeholder="https://example.com/image.jpg" 
-                value={formData.thumbnail}
-                onChange={(e) => updateFormData('thumbnail', e.target.value)}
-                disabled={loading}
-              />
-              <span className="text-sm text-muted-foreground">Enter image URL (recommended: 1200x630px)</span>
+              <Label htmlFor="edit-thumbnail">Course Thumbnail</Label>
+              <div className="space-y-3">
+                {thumbnailPreview ? (
+                  <div className="relative">
+                    <div className="relative w-full h-48 border-2 border-dashed rounded-lg overflow-hidden">
+                      <img 
+                        src={thumbnailPreview} 
+                        alt="Thumbnail preview" 
+                        className="w-full h-full object-cover"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="absolute top-2 right-2"
+                        onClick={removeThumbnail}
+                        disabled={uploadingImage || loading}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {selectedFile && (
+                      <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                        <ImageIcon className="h-3 w-3" />
+                        New image ready. Will be uploaded when you update the course.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div 
+                    className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <div className="flex flex-col items-center gap-2">
+                      {uploadingImage ? (
+                        <>
+                          <Loader2 className="h-10 w-10 text-muted-foreground animate-spin" />
+                          <p className="text-sm text-muted-foreground">Uploading...</p>
+                        </>
+                      ) : (
+                        <>
+                          <ImageIcon className="h-10 w-10 text-muted-foreground" />
+                          <p className="text-sm font-medium">Click to upload thumbnail</p>
+                          <p className="text-xs text-muted-foreground">PNG, JPG, WEBP or GIF (max. 5MB)</p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+                <Input 
+                  ref={fileInputRef}
+                  id="edit-thumbnail" 
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileChange}
+                  disabled={uploadingImage || loading}
+                />
+              </div>
+              <span className="text-sm text-muted-foreground">Recommended size: 1200x630px</span>
             </div>
 
             <div className="grid gap-2">
@@ -349,12 +503,12 @@ export function EditCourseDialog({ course, open, onOpenChange, onSuccess }: Edit
             </Button>
             <Button 
               type="submit" 
-              disabled={loading}
+              disabled={loading || uploadingImage}
             >
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Updating...
+                  {uploadingImage ? 'Uploading image...' : 'Updating course...'}
                 </>
               ) : (
                 <>
