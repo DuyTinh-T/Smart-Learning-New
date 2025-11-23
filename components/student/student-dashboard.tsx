@@ -115,7 +115,20 @@ export function StudentDashboard() {
         if (response.success && response.data) {
           // Transform enrollment data to course format expected by UI
           const enrollmentData = response.data.enrollments || []
-          const transformedCourses = enrollmentData.map((enrollment: any) => ({
+          // Filter out enrollments with null/deleted courses
+          const validEnrollments = enrollmentData.filter((enrollment: any) => enrollment.course != null)
+          
+          // Show warning if there are invalid enrollments
+          if (validEnrollments.length < enrollmentData.length) {
+            const invalidCount = enrollmentData.length - validEnrollments.length
+            toast({
+              title: "Warning",
+              description: `${invalidCount} enrollment(s) have missing or deleted courses and were hidden.`,
+              variant: "default"
+            })
+          }
+          
+          const transformedCourses = validEnrollments.map((enrollment: any) => ({
             id: enrollment.course._id || enrollment.course.id,
             title: enrollment.course.title,
             instructor: enrollment.course.instructor,

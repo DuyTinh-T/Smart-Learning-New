@@ -89,6 +89,7 @@ export function StudentCourseView({ courseId, onBack }: StudentCourseViewProps) 
   
   const [course, setCourse] = useState<Course | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null)
   const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set())
   const [isEnrolled, setIsEnrolled] = useState(false)
@@ -99,17 +100,21 @@ export function StudentCourseView({ courseId, onBack }: StudentCourseViewProps) 
   const loadCourse = async () => {
     try {
       setLoading(true)
+      setError(null)
       
       // First check if user is enrolled
       const enrollmentResponse = await enrollmentApi.checkEnrollment(courseId)
       if (!enrollmentResponse.success || !enrollmentResponse.data) {
-        throw new Error('You are not enrolled in this course')
+        throw new Error('Bạn chưa đăng ký khóa học này hoặc khóa học không tồn tại')
       }
       
       // Load enrollment progress
       const progressResponse = await enrollmentApi.getProgress(enrollmentResponse.data._id)
       if (!progressResponse.success) {
-        throw new Error('Failed to load course progress')
+        const errorMsg = progressResponse.error || 'Failed to load course progress'
+        throw new Error(errorMsg === 'Course no longer exists or has been deleted' 
+          ? 'Khóa học này đã bị xóa hoặc không còn tồn tại' 
+          : 'Không thể tải tiến trình khóa học')
       }
       
       setEnrollment(enrollmentResponse.data)
@@ -179,9 +184,11 @@ export function StudentCourseView({ courseId, onBack }: StudentCourseViewProps) 
       
     } catch (error: any) {
       console.error('Error loading course:', error)
+      const errorMessage = error.message || "Không thể tải thông tin khóa học"
+      setError(errorMessage)
       toast({
         title: "Lỗi",
-        description: error.message || "Không thể tải thông tin khóa học",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
@@ -630,11 +637,20 @@ export function StudentCourseView({ courseId, onBack }: StudentCourseViewProps) 
   if (!course) {
     return (
       <div className="text-center py-12">
-        <p className="text-muted-foreground">Không tìm thấy khóa học</p>
-        <Button onClick={onBack} className="mt-4">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Quay lại
-        </Button>
+        <div className="max-w-md mx-auto">
+          {error ? (
+            <>
+              <div className="text-red-500 mb-4 text-lg font-semibold">⚠️ Lỗi</div>
+              <p className="text-muted-foreground mb-6">{error}</p>
+            </>
+          ) : (
+            <p className="text-muted-foreground mb-6">Không tìm thấy khóa học</p>
+          )}
+          <Button onClick={onBack} variant="outline">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Quay lại
+          </Button>
+        </div>
       </div>
     )
   }

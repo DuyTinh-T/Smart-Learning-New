@@ -250,8 +250,9 @@ export const enrollmentApi = {
     const response = await apiCall('/enrollments')
     if (response.success && response.data) {
       const data = response.data as any
+      // Filter out enrollments with null courses and find the matching one
       const enrollment = data.enrollments?.find((e: any) => 
-        e.course._id === courseId || e.course.id === courseId
+        e.course && (e.course._id === courseId || e.course.id === courseId)
       )
       return {
         success: true,
