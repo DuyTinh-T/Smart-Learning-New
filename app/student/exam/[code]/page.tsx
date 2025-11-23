@@ -10,7 +10,7 @@ export default function StudentExamPage() {
 
   return (
     <RoleGuard allowedRoles={['student']}>
-      <div className="container mx-auto py-6">
+      <div className="container mx-auto p-6">
         <StudentExamInterface roomCode={roomCode} />
       </div>
     </RoleGuard>

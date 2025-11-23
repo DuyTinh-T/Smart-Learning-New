@@ -118,11 +118,18 @@ export function CourseManagement() {
       }) as CourseApiResponse
 
       if (response.success && response.data) {
-        setCourses(response.data)
+        // Filter to only show courses created by current user (unless admin)
+        let filteredCourses = response.data
+        if (user && user.role !== 'admin') {
+          filteredCourses = response.data.filter(course => course.createdBy._id === user._id)
+        }
+        
+        setCourses(filteredCourses)
         if (response.meta) {
           setPagination(prev => ({
             ...prev,
-            ...response.meta
+            ...response.meta,
+            totalCount: filteredCourses.length
           }))
         }
       } else {
@@ -443,16 +450,6 @@ export function CourseManagement() {
                         {course.visibility}
                       </Badge>
                       <Badge variant="outline">{course.category}</Badge>
-                      {canEditCourse(course) && user?._id === course.createdBy._id && (
-                        <Badge variant="secondary" className="bg-green-100 text-green-800">
-                          Your Course
-                        </Badge>
-                      )}
-                      {user?.role === 'admin' && user._id !== course.createdBy._id && (
-                        <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                          Admin Access
-                        </Badge>
-                      )}
                     </div>
                   </div>
                   {course.thumbnail && (
@@ -466,9 +463,6 @@ export function CourseManagement() {
                 <CardDescription className="line-clamp-3">
                   {course.description}
                 </CardDescription>
-                <div className="text-xs text-muted-foreground mt-2">
-                  Created by: {course.createdBy.name}
-                </div>
               </CardHeader>
               
               <CardContent>
@@ -497,7 +491,7 @@ export function CourseManagement() {
                   {course.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                       {course.tags.slice(0, 3).map((tag, index) => (
-                        <Badge key={index} variant="outline" className="text-xs">
+                        <Badge key={index} variant="outline" className="text-xs tag">
                           {tag}
                         </Badge>
                       ))}
@@ -513,16 +507,6 @@ export function CourseManagement() {
 
               <CardFooter>
                 <div className="flex w-full gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="flex-1"
-                    onClick={() => handleViewCourse(course._id)}
-                  >
-                    <Eye className="h-4 w-4 mr-2" />
-                    View
-                  </Button>
-                  
                   {/* Show Manage Content button if user can edit this course */}
                   {canEditCourse(course) && (
                     <Button 

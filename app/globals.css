@@ -203,3 +203,14 @@
     @apply my-6 border-border;
   }
 }
+
+  .tag {
+    max-width: 100px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+  }
+  .dialog {
+    max-width: 70vw;
+  }
