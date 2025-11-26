@@ -35,11 +35,8 @@ export function Header() {
       className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
     >
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2 transition-transform hover:scale-105">
-          <div className="rounded-lg bg-primary p-2">
-            <BookOpen className="h-5 w-5 text-primary-foreground" />
-          </div>
-          <span className="text-xl font-bold">LearnHub</span>
+        <Link href="/" className="flex items-center gap-2 transition-transform hover:scale-105 max-w-[60px]">
+         <img src="/logo-new.png" alt="LearnHub Logo" />
         </Link>
 
         {/* Desktop Navigation */}

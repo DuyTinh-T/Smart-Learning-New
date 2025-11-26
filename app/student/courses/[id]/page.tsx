@@ -9,6 +9,8 @@ import { useAuth } from "@/lib/auth-context"
 import { Loader2, ArrowLeft, BookOpen } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import { Header } from "@/components/header"
+import { Footer } from "@/components/footer"
 
 interface Course {
   _id: string;
@@ -151,10 +153,12 @@ export default function StudentCoursePage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Header/>
       <StudentCourseView 
         courseId={courseId} 
         onBack={handleBack}
       />
+      <Footer/>
     </div>
   )
 }

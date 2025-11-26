@@ -470,23 +470,13 @@ export function CreateCourseDialog() {
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="category">Category *</Label>
-                <select
+                <Input
                   id="category"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  placeholder="e.g., Programming, Design, Business..."
                   required
                   value={formData.category}
                   onChange={(e) => updateFormData('category', e.target.value)}
-                >
-                  <option value="">Select category</option>
-                  <option value="programming">Programming</option>
-                  <option value="design">Design</option>
-                  <option value="business">Business</option>
-                  <option value="marketing">Marketing</option>
-                  <option value="data-science">Data Science</option>
-                  <option value="web-development">Web Development</option>
-                  <option value="mobile-development">Mobile Development</option>
-                  <option value="artificial-intelligence">Artificial Intelligence</option>
-                </select>
+                />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="price">Price ($)</Label>

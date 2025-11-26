@@ -726,7 +726,7 @@ export function StudentCourseView({ courseId, onBack }: StudentCourseViewProps) 
                                 <div className="h-4 w-4 rounded-full border-2 border-gray-300" />
                               )}
                               {getLessonIcon(lesson.type, lesson._id)}
-                              <span className="flex-1 truncate">
+                              <span className="flex-1 truncate title-module">
                                 {lessonIndex + 1}. {lesson.title}
                               </span>
                             </div>

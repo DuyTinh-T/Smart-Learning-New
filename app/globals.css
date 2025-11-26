@@ -214,3 +214,7 @@
   .dialog {
     max-width: 70vw;
   }
+
+  .title-module{
+    max-width: 200px;
+  }
