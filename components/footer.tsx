@@ -7,11 +7,8 @@ export function Footer() {
       <div className="container mx-auto px-4 py-12">
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
           <div>
-            <Link href="/" className="flex items-center gap-2 mb-4">
-              <div className="rounded-lg bg-primary p-2">
-                <BookOpen className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <span className="text-xl font-bold">LearnHub</span>
+            <Link href="/" className="flex items-center gap-2 transition-transform hover:scale-105 max-w-[60px]">
+              <img src="/logo-new.png" alt="LearnHub Logo" />
             </Link>
             <p className="text-sm text-muted-foreground mb-4">
               Empowering learners worldwide with quality education and expert instruction.
