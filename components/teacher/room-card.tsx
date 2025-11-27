@@ -67,46 +67,61 @@ export function RoomCard({ room, onRoomUpdated, onRoomDeleted }: RoomCardProps) 
     // Listen for room updates
     const handleRoomUpdate = (data: any) => {
       console.log('📡 Room update received:', data);
-      if (data.participants) {
-        setParticipants(data.participants);
-        setTotalStudents(data.totalStudents || 0);
+      // Only update if this event is for THIS specific room
+      if (data.room && data.room.roomCode === room.roomCode) {
+        if (data.participants) {
+          setParticipants(data.participants);
+          setTotalStudents(data.totalStudents || 0);
+        }
       }
     };
 
     const handleExamStarted = (data: any) => {
       console.log('🏁 Exam started:', data);
-      toast({
-        title: 'Exam Started',
-        description: data.message,
-      });
-      onRoomUpdated({ ...room, status: 'running', startTime: data.startTime, endTime: data.endTime });
-      setIsStarting(false);
+      // Only handle if this event is for THIS specific room
+      if (data.roomCode === room.roomCode) {
+        toast({
+          title: 'Exam Started',
+          description: data.message,
+        });
+        onRoomUpdated({ ...room, status: 'running', startTime: data.startTime, endTime: data.endTime });
+        setIsStarting(false);
+      }
     };
 
     const handleExamEnded = (data: any) => {
       console.log('⏱️ Exam ended:', data);
-      toast({
-        title: 'Exam Ended',
-        description: data.message,
-      });
-      onRoomUpdated({ ...room, status: 'ended' });
+      // Only handle if this event is for THIS specific room
+      if (data.roomCode === room.roomCode) {
+        toast({
+          title: 'Exam Ended',
+          description: data.message,
+        });
+        onRoomUpdated({ ...room, status: 'ended' });
+      }
     };
 
     const handleStudentSubmitted = (data: any) => {
       console.log('📝 Student submitted:', data);
-      toast({
-        title: 'Student Submitted',
-        description: `A student has submitted their exam`,
-      });
+      // Only show toast if this event is for THIS specific room
+      if (data.roomCode === room.roomCode) {
+        toast({
+          title: 'Student Submitted',
+          description: `A student has submitted their exam`,
+        });
+      }
     };
 
     const handleJoinedRoom = (data: any) => {
       console.log('✅ Successfully joined room:', data);
-      toast({
-        title: 'Joined Room',
-        description: data.message,
-      });
-      setIsJoining(false);
+      // Only handle if this event is for THIS specific room
+      if (data.room && data.room.roomCode === room.roomCode) {
+        toast({
+          title: 'Joined Room',
+          description: data.message,
+        });
+        setIsJoining(false);
+      }
     };
 
     const handleError = (data: any) => {
