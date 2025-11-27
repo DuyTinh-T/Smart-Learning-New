@@ -30,6 +30,8 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useEffect, useState } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
+import { TeacherProfileDialog } from "./teacher-profile-dialog"
+import { StudentProfileDialog } from "./student-profile-dialog"
 
 interface Teacher {
   id: string
@@ -194,6 +196,22 @@ export function AdminDashboard() {
   const [studentsPage, setStudentsPage] = useState(1)
   const [coursesPage, setCoursesPage] = useState(1)
   const itemsPerPage = 10
+
+  // Profile dialog states
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null)
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
+  const [teacherDialogOpen, setTeacherDialogOpen] = useState(false)
+  const [studentDialogOpen, setStudentDialogOpen] = useState(false)
+
+  const handleViewTeacherProfile = (teacherId: string) => {
+    setSelectedTeacherId(teacherId)
+    setTeacherDialogOpen(true)
+  }
+
+  const handleViewStudentProfile = (studentId: string) => {
+    setSelectedStudentId(studentId)
+    setStudentDialogOpen(true)
+  }
 
   useEffect(() => {
     const fetchData = async () => {
@@ -465,7 +483,7 @@ export function AdminDashboard() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleViewTeacherProfile(teacher.id)}>
                               <UserCheck className="h-4 w-4 mr-2" />
                               View Profile
                             </DropdownMenuItem>
@@ -574,7 +592,7 @@ export function AdminDashboard() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleViewStudentProfile(student.id)}>
                               <UserCheck className="h-4 w-4 mr-2" />
                               View Profile
                             </DropdownMenuItem>
@@ -721,6 +739,18 @@ export function AdminDashboard() {
           </Tabs>
         </>
       )}
+
+      {/* Profile Dialogs */}
+      <TeacherProfileDialog
+        teacherId={selectedTeacherId}
+        open={teacherDialogOpen}
+        onOpenChange={setTeacherDialogOpen}
+      />
+      <StudentProfileDialog
+        studentId={selectedStudentId}
+        open={studentDialogOpen}
+        onOpenChange={setStudentDialogOpen}
+      />
     </div>
   )
 }
