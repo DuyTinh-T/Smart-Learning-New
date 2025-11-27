@@ -32,6 +32,8 @@ import { useEffect, useState } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { TeacherProfileDialog } from "./teacher-profile-dialog"
 import { StudentProfileDialog } from "./student-profile-dialog"
+import { SuspendAccountDialog } from "./suspend-account-dialog"
+import { useToast } from "@/hooks/use-toast"
 
 interface Teacher {
   id: string
@@ -203,6 +205,15 @@ export function AdminDashboard() {
   const [teacherDialogOpen, setTeacherDialogOpen] = useState(false)
   const [studentDialogOpen, setStudentDialogOpen] = useState(false)
 
+  // Suspend dialog states
+  const [suspendDialogOpen, setSuspendDialogOpen] = useState(false)
+  const [suspendUserId, setSuspendUserId] = useState<string | null>(null)
+  const [suspendUserName, setSuspendUserName] = useState("")
+  const [suspendUserType, setSuspendUserType] = useState<"teacher" | "student">("teacher")
+  const [suspendUserStatus, setSuspendUserStatus] = useState("")
+
+  const { toast } = useToast()
+
   const handleViewTeacherProfile = (teacherId: string) => {
     setSelectedTeacherId(teacherId)
     setTeacherDialogOpen(true)
@@ -213,43 +224,64 @@ export function AdminDashboard() {
     setStudentDialogOpen(true)
   }
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true)
-        setError(null)
+  const handleSuspendTeacher = (teacher: Teacher) => {
+    setSuspendUserId(teacher.id)
+    setSuspendUserName(teacher.name)
+    setSuspendUserType("teacher")
+    setSuspendUserStatus(teacher.status)
+    setSuspendDialogOpen(true)
+  }
 
-        // Fetch all data in parallel
-        const [teachersRes, studentsRes, coursesRes, statsRes] = await Promise.all([
-          fetch('/api/admin/teachers'),
-          fetch('/api/admin/students'),
-          fetch('/api/admin/courses'),
-          fetch('/api/admin/stats'),
-        ])
+  const handleSuspendStudent = (student: Student) => {
+    setSuspendUserId(student.id)
+    setSuspendUserName(student.name)
+    setSuspendUserType("student")
+    setSuspendUserStatus(student.status)
+    setSuspendDialogOpen(true)
+  }
 
-        if (!teachersRes.ok || !studentsRes.ok || !coursesRes.ok || !statsRes.ok) {
-          throw new Error('Failed to fetch admin data')
-        }
+  const handleSuspendSuccess = () => {
+    // Refresh data after suspend/activate
+    fetchData()
+  }
 
-        const [teachersData, studentsData, coursesData, statsData] = await Promise.all([
-          teachersRes.json(),
-          studentsRes.json(),
-          coursesRes.json(),
-          statsRes.json(),
-        ])
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
 
-        setTeachersData(teachersData.data || [])
-        setStudentsData(studentsData.data || [])
-        setCoursesData(coursesData.data || [])
-        setStats(statsData.data || null)
-      } catch (err) {
-        console.error('Error fetching admin data:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load data')
-      } finally {
-        setLoading(false)
+      // Fetch all data in parallel
+      const [teachersRes, studentsRes, coursesRes, statsRes] = await Promise.all([
+        fetch('/api/admin/teachers'),
+        fetch('/api/admin/students'),
+        fetch('/api/admin/courses'),
+        fetch('/api/admin/stats'),
+      ])
+
+      if (!teachersRes.ok || !studentsRes.ok || !coursesRes.ok || !statsRes.ok) {
+        throw new Error('Failed to fetch admin data')
       }
-    }
 
+      const [teachersData, studentsData, coursesData, statsData] = await Promise.all([
+        teachersRes.json(),
+        studentsRes.json(),
+        coursesRes.json(),
+        statsRes.json(),
+      ])
+
+      setTeachersData(teachersData.data || [])
+      setStudentsData(studentsData.data || [])
+      setCoursesData(coursesData.data || [])
+      setStats(statsData.data || null)
+    } catch (err) {
+      console.error('Error fetching admin data:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load data')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
     fetchData()
   }, [])
 
@@ -487,14 +519,13 @@ export function AdminDashboard() {
                               <UserCheck className="h-4 w-4 mr-2" />
                               View Profile
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <BookOpen className="h-4 w-4 mr-2" />
-                              View Courses
-                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-destructive">
+                            <DropdownMenuItem 
+                              className="text-destructive"
+                              onClick={() => handleSuspendTeacher(teacher)}
+                            >
                               <UserX className="h-4 w-4 mr-2" />
-                              Suspend Account
+                              {teacher.status === "active" ? "Suspend Account" : "Activate Account"}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -605,9 +636,12 @@ export function AdminDashboard() {
                               View Enrollments
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-destructive">
+                            <DropdownMenuItem 
+                              className="text-destructive"
+                              onClick={() => handleSuspendStudent(student)}
+                            >
                               <UserX className="h-4 w-4 mr-2" />
-                              Suspend Account
+                              {student.status === "active" ? "Suspend Account" : "Activate Account"}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -750,6 +784,17 @@ export function AdminDashboard() {
         studentId={selectedStudentId}
         open={studentDialogOpen}
         onOpenChange={setStudentDialogOpen}
+      />
+
+      {/* Suspend Account Dialog */}
+      <SuspendAccountDialog
+        open={suspendDialogOpen}
+        onOpenChange={setSuspendDialogOpen}
+        userId={suspendUserId}
+        userName={suspendUserName}
+        userType={suspendUserType}
+        currentStatus={suspendUserStatus}
+        onSuccess={handleSuspendSuccess}
       />
     </div>
   )
