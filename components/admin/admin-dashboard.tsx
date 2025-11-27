@@ -33,6 +33,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 import { TeacherProfileDialog } from "./teacher-profile-dialog"
 import { StudentProfileDialog } from "./student-profile-dialog"
 import { SuspendAccountDialog } from "./suspend-account-dialog"
+import { EnrollmentsDialog } from "./enrollments-dialog"
 import { useToast } from "@/hooks/use-toast"
 
 interface Teacher {
@@ -205,6 +206,11 @@ export function AdminDashboard() {
   const [teacherDialogOpen, setTeacherDialogOpen] = useState(false)
   const [studentDialogOpen, setStudentDialogOpen] = useState(false)
 
+  // Enrollments dialog states
+  const [enrollmentsDialogOpen, setEnrollmentsDialogOpen] = useState(false)
+  const [enrollmentsStudentId, setEnrollmentsStudentId] = useState<string | null>(null)
+  const [enrollmentsStudentName, setEnrollmentsStudentName] = useState("")
+
   // Suspend dialog states
   const [suspendDialogOpen, setSuspendDialogOpen] = useState(false)
   const [suspendUserId, setSuspendUserId] = useState<string | null>(null)
@@ -222,6 +228,12 @@ export function AdminDashboard() {
   const handleViewStudentProfile = (studentId: string) => {
     setSelectedStudentId(studentId)
     setStudentDialogOpen(true)
+  }
+
+  const handleViewEnrollments = (student: Student) => {
+    setEnrollmentsStudentId(student.id)
+    setEnrollmentsStudentName(student.name)
+    setEnrollmentsDialogOpen(true)
   }
 
   const handleSuspendTeacher = (teacher: Teacher) => {
@@ -627,11 +639,7 @@ export function AdminDashboard() {
                               <UserCheck className="h-4 w-4 mr-2" />
                               View Profile
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Mail className="h-4 w-4 mr-2" />
-                              Send Message
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleViewEnrollments(student)}>
                               <BookOpen className="h-4 w-4 mr-2" />
                               View Enrollments
                             </DropdownMenuItem>
@@ -784,6 +792,14 @@ export function AdminDashboard() {
         studentId={selectedStudentId}
         open={studentDialogOpen}
         onOpenChange={setStudentDialogOpen}
+      />
+
+      {/* Enrollments Dialog */}
+      <EnrollmentsDialog
+        studentId={enrollmentsStudentId}
+        studentName={enrollmentsStudentName}
+        open={enrollmentsDialogOpen}
+        onOpenChange={setEnrollmentsDialogOpen}
       />
 
       {/* Suspend Account Dialog */}
