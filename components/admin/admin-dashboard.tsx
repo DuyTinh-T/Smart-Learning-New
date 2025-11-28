@@ -34,6 +34,7 @@ import { TeacherProfileDialog } from "./teacher-profile-dialog"
 import { StudentProfileDialog } from "./student-profile-dialog"
 import { SuspendAccountDialog } from "./suspend-account-dialog"
 import { EnrollmentsDialog } from "./enrollments-dialog"
+import { DeactivateCourseDialog } from "./deactivate-course-dialog"
 import { useToast } from "@/hooks/use-toast"
 
 interface Teacher {
@@ -218,6 +219,10 @@ export function AdminDashboard() {
   const [suspendUserType, setSuspendUserType] = useState<"teacher" | "student">("teacher")
   const [suspendUserStatus, setSuspendUserStatus] = useState("")
 
+  // Course actions states
+  const [deactivateCourseDialogOpen, setDeactivateCourseDialogOpen] = useState(false)
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
+
   const { toast } = useToast()
 
   const handleViewTeacherProfile = (teacherId: string) => {
@@ -255,6 +260,21 @@ export function AdminDashboard() {
   const handleSuspendSuccess = () => {
     // Refresh data after suspend/activate
     fetchData()
+  }
+
+  const handleViewCourse = (course: Course) => {
+    // Navigate to course page
+    window.open(`/courses/${course.slug}`, '_blank')
+  }
+
+  const handleViewCourseTeacher = (course: Course) => {
+    setSelectedTeacherId(course.teacher.id)
+    setTeacherDialogOpen(true)
+  }
+
+  const handleDeactivateCourse = (course: Course) => {
+    setSelectedCourse(course)
+    setDeactivateCourseDialogOpen(true)
   }
 
   const fetchData = async () => {
@@ -748,18 +768,21 @@ export function AdminDashboard() {
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleViewCourse(course)}>
                                 <BookOpen className="h-4 w-4 mr-2" />
                                 View Course
                               </DropdownMenuItem>
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleViewCourseTeacher(course)}>
                                 <UserCheck className="h-4 w-4 mr-2" />
                                 View Teacher
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-destructive">
+                              <DropdownMenuItem 
+                                className="text-destructive"
+                                onClick={() => handleDeactivateCourse(course)}
+                              >
                                 <UserX className="h-4 w-4 mr-2" />
-                                Deactivate Course
+                                {course.isActive ? 'Deactivate Course' : 'Activate Course'}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -811,6 +834,16 @@ export function AdminDashboard() {
         userType={suspendUserType}
         currentStatus={suspendUserStatus}
         onSuccess={handleSuspendSuccess}
+      />
+
+      {/* Deactivate Course Dialog */}
+      <DeactivateCourseDialog
+        open={deactivateCourseDialogOpen}
+        onOpenChange={setDeactivateCourseDialogOpen}
+        courseId={selectedCourse?.id || null}
+        courseTitle={selectedCourse?.title || ""}
+        currentStatus={selectedCourse?.isActive || false}
+        onSuccess={fetchData}
       />
     </div>
   )
