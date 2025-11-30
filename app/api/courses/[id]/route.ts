@@ -26,10 +26,31 @@ export async function GET(
       );
     }
 
-    // Check if course is public or user has access
+    // If course is inactive, only creator or admin can access
+    if (course.isActive === false) {
+      const { user, error } = await authenticate(request);
+      if (error || !user) {
+        return NextResponse.json(
+          { success: false, error: 'Course is inactive.' },
+          { status: 403 }
+        );
+      }
+
+      const isCreator = (user._id as any).toString() === (course.createdBy as any)._id.toString();
+      const isAdmin = user.role === 'admin';
+
+      if (!isCreator && !isAdmin) {
+        return NextResponse.json(
+          { success: false, error: 'Course is inactive.' },
+          { status: 403 }
+        );
+      }
+    }
+
+    // Check if course is private (only creators/admins can access)
     if (course.visibility === 'private') {
       const { user, error } = await authenticate(request);
-      
+
       // If no authentication and course is private, deny access
       if (error || !user) {
         return NextResponse.json(
