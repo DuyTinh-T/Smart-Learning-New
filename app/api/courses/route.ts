@@ -47,6 +47,24 @@ export async function GET(request: NextRequest) {
       filter.visibility = 'public';
     }
 
+    // By default, only show active courses. Admins can include inactive via includeInactive=1
+    const includeInactive = searchParams.get('includeInactive') || '0';
+    if (includeInactive !== '1') {
+      filter.isActive = true
+    } else {
+      // If includeInactive requested, validate requester is admin — otherwise still hide inactive
+      try {
+        const { user } = await authenticate(request);
+        if (!user || user.role !== 'admin') {
+          filter.isActive = true
+        } else {
+          // admin may see all, do not add isActive filter
+        }
+      } catch (e) {
+        filter.isActive = true
+      }
+    }
+
     // Calculate pagination
     const skip = (page - 1) * limit;
 
