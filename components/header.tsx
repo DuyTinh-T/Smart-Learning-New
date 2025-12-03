@@ -44,6 +44,11 @@ export function Header() {
           <Link href="/courses" className="text-sm font-medium transition-colors hover:text-primary">
             Courses
           </Link>
+          {user?.role === "student" && (
+            <Link href="/bookmarks" className="text-sm font-medium transition-colors hover:text-primary">
+              Bookmarks
+            </Link>
+          )}
           <Link href="/about" className="text-sm font-medium transition-colors hover:text-primary">
             About
           </Link>
@@ -128,6 +133,15 @@ export function Header() {
                 >
                   Courses
                 </Link>
+                {user?.role === "student" && (
+                  <Link
+                    href="/bookmarks"
+                    className="text-lg font-medium transition-colors hover:text-primary"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    Bookmarks
+                  </Link>
+                )}
                 <Link
                   href="/about"
                   className="text-lg font-medium transition-colors hover:text-primary"
