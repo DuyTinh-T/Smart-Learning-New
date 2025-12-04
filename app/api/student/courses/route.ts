@@ -54,29 +54,31 @@ export async function GET(request: NextRequest) {
     })
 
     // Transform courses for student dashboard
-    const enrolledCourses = enrollments.map((enrollment: any) => {
-      const course = enrollment.course
-      // Use real enrollment progress data
+    const enrolledCourses = enrollments
+      .filter((enrollment: any) => enrollment.course != null) // Filter out null courses
+      .map((enrollment: any) => {
+        const course = enrollment.course
+        // Use real enrollment progress data
 
-      return {
-        id: course._id.toString(),
-        title: course.title,
-        description: course.description,
-        instructor: course.createdBy?.name || 'Unknown Instructor',
-        instructorEmail: course.createdBy?.email,
-        thumbnail: course.thumbnail,
-        category: course.category,
-        tags: course.tags,
-        price: course.price,
-        enrollmentCount: course.enrollmentCount,
-        progress: enrollment.progress?.percentage || 0,
-        totalLessons: enrollment.progress?.totalLessons || 0,
-        completedLessons: enrollment.progress?.completedLessons?.length || 0,
-        nextLesson: enrollment.progress?.percentage < 100 ? 'Continue Learning' : 'Course Completed',
-        createdAt: course.createdAt,
-        enrolledAt: enrollment.enrolledAt
-      }
-    })
+        return {
+          id: course._id.toString(),
+          title: course.title,
+          description: course.description,
+          instructor: course.createdBy?.name || 'Unknown Instructor',
+          instructorEmail: course.createdBy?.email,
+          thumbnail: course.thumbnail,
+          category: course.category,
+          tags: course.tags,
+          price: course.price,
+          enrollmentCount: course.enrollmentCount,
+          progress: enrollment.progress?.percentage || 0,
+          totalLessons: enrollment.progress?.totalLessons || 0,
+          completedLessons: enrollment.progress?.completedLessons?.length || 0,
+          nextLesson: enrollment.progress?.percentage < 100 ? 'Continue Learning' : 'Course Completed',
+          createdAt: course.createdAt,
+          enrolledAt: enrollment.enrolledAt
+        }
+      })
 
     return NextResponse.json(
       {
