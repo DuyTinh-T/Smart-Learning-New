@@ -13,6 +13,7 @@ import { courseApi, enrollmentApi } from "@/lib/api/course-api"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
 import { PurchaseCourseButton, PaymentStatus, PaymentResult, usePaymentStatus } from "@/components/payment"
+import { CourseReviews } from "./course-reviews"
 
 interface CourseDetailProps {
   courseId: string
@@ -458,7 +459,6 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
           <Tabs defaultValue="curriculum" className="space-y-6">
             <TabsList className="bg-card">
               <TabsTrigger value="curriculum">Curriculum</TabsTrigger>
-              <TabsTrigger value="about">About</TabsTrigger>
               <TabsTrigger value="reviews">Reviews</TabsTrigger>
             </TabsList>
 
@@ -525,51 +525,8 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
               </motion.div>
             </TabsContent>
 
-            <TabsContent value="about">
-              <Card>
-                <CardHeader>
-                  <CardTitle>About This Course</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div>
-                    <h3 className="font-semibold mb-2">What You'll Learn</h3>
-                    <ul className="space-y-2">
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
-                        <span>Build responsive websites using HTML, CSS, and JavaScript</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
-                        <span>Understand modern web development best practices</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
-                        <span>Create interactive user interfaces with JavaScript</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
-                        <span>Deploy your projects to the web</span>
-                      </li>
-                    </ul>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold mb-2">About the Instructor</h3>
-                    <p className="text-muted-foreground">Experienced instructor with years of teaching experience.</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
             <TabsContent value="reviews">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Student Reviews</CardTitle>
-                  <CardDescription>{courseData.reviews} reviews</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">Reviews coming soon...</p>
-                </CardContent>
-              </Card>
+              <CourseReviews courseId={courseData.id} />
             </TabsContent>
           </Tabs>
         </div>
