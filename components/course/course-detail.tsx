@@ -6,13 +6,14 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Clock, Users, Star, BookOpen, CheckCircle2, Lock, Play, Loader2, AlertCircle } from "lucide-react"
+import { Clock, Users, Star, BookOpen, CheckCircle2, Lock, Play, Loader2, AlertCircle, Bookmark, BookmarkCheck } from "lucide-react"
 import { motion } from "framer-motion"
 import Link from "next/link"
 import { courseApi, enrollmentApi } from "@/lib/api/course-api"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
 import { PurchaseCourseButton, PaymentStatus, PaymentResult, usePaymentStatus } from "@/components/payment"
+import { CourseReviews } from "./course-reviews"
 
 interface CourseDetailProps {
   courseId: string
@@ -56,6 +57,8 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
   const [courseData, setCourseData] = useState<CourseData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isBookmarked, setIsBookmarked] = useState(false)
+  const [bookmarkLoading, setBookmarkLoading] = useState(false)
   const { toast } = useToast()
   const { user } = useAuth()
 
@@ -109,6 +112,91 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleBookmark = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to bookmark courses.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (user.role !== 'student') {
+      toast({
+        title: "Access Denied",
+        description: "Only students can bookmark courses.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      setBookmarkLoading(true)
+
+      if (isBookmarked) {
+        // Remove bookmark
+        const response = await fetch(`/api/bookmarks/${courseId}`, {
+          method: "DELETE"
+        })
+        const data = await response.json()
+
+        if (data.success) {
+          setIsBookmarked(false)
+          toast({
+            title: "Removed",
+            description: "Course removed from bookmarks"
+          })
+        } else {
+          throw new Error(data.error || "Failed to remove bookmark")
+        }
+      } else {
+        // Add bookmark
+        const response = await fetch("/api/bookmarks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ courseId })
+        })
+        const data = await response.json()
+
+        if (data.success) {
+          setIsBookmarked(true)
+          toast({
+            title: "Bookmarked!",
+            description: "Course added to your bookmarks"
+          })
+        } else {
+          throw new Error(data.error || "Failed to add bookmark")
+        }
+      }
+    } catch (error) {
+      console.error("Bookmark error:", error)
+      const errorMessage = error instanceof Error ? error.message : "Failed to update bookmark"
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive"
+      })
+    } finally {
+      setBookmarkLoading(false)
+    }
+  }
+
+  const checkBookmarkStatus = async () => {
+    if (!user || user.role !== 'student') return
+
+    try {
+      const response = await fetch(`/api/bookmarks/${courseId}`)
+      const data = await response.json()
+
+      if (data.success) {
+        setIsBookmarked(data.data.isBookmarked)
+      }
+    } catch (error) {
+      console.error("Failed to check bookmark status:", error)
     }
   }
 
@@ -187,8 +275,9 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
   useEffect(() => {
     if (courseId) {
       loadCourseData()
+      checkBookmarkStatus()
     }
-  }, [courseId, toast, user])
+  }, [courseId, user])
 
   if (loading) {
     return (
@@ -314,14 +403,13 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
                           }
                         </p>
                       </div>
-
                       {courseData.price && courseData.price > 0 ? (
                         <PurchaseCourseButton 
                           course={{
                             _id: courseData.id,
                             title: courseData.title,
                             price: courseData.price,
-                            slug: courseData.id // You may want to add slug to courseData
+                            slug: courseData.id
                           }}
                           isEnrolled={courseData.enrolled}
                         />
@@ -334,9 +422,28 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
                         </Button>
                       )}
 
-                      <Button variant="outline" className="w-full bg-transparent">
-                        Add to Wishlist
-                      </Button>
+                      {user?.role === 'student' && (
+                        <Button 
+                          variant="outline" 
+                          className="w-full bg-transparent"
+                          onClick={handleBookmark}
+                          disabled={bookmarkLoading}
+                        >
+                          {bookmarkLoading ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : isBookmarked ? (
+                            <>
+                              <BookmarkCheck className="h-4 w-4 mr-2" />
+                              Bookmarked
+                            </>
+                          ) : (
+                            <>
+                              <Bookmark className="h-4 w-4 mr-2" />
+                              Add to Wishlist
+                            </>
+                          )}
+                        </Button>
+                      )}
                     </div>
                   )}
                 </CardContent>
@@ -352,7 +459,6 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
           <Tabs defaultValue="curriculum" className="space-y-6">
             <TabsList className="bg-card">
               <TabsTrigger value="curriculum">Curriculum</TabsTrigger>
-              <TabsTrigger value="about">About</TabsTrigger>
               <TabsTrigger value="reviews">Reviews</TabsTrigger>
             </TabsList>
 
@@ -419,51 +525,8 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
               </motion.div>
             </TabsContent>
 
-            <TabsContent value="about">
-              <Card>
-                <CardHeader>
-                  <CardTitle>About This Course</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div>
-                    <h3 className="font-semibold mb-2">What You'll Learn</h3>
-                    <ul className="space-y-2">
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
-                        <span>Build responsive websites using HTML, CSS, and JavaScript</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
-                        <span>Understand modern web development best practices</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
-                        <span>Create interactive user interfaces with JavaScript</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
-                        <span>Deploy your projects to the web</span>
-                      </li>
-                    </ul>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold mb-2">About the Instructor</h3>
-                    <p className="text-muted-foreground">Experienced instructor with years of teaching experience.</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
             <TabsContent value="reviews">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Student Reviews</CardTitle>
-                  <CardDescription>{courseData.reviews} reviews</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">Reviews coming soon...</p>
-                </CardContent>
-              </Card>
+              <CourseReviews courseId={courseData.id} />
             </TabsContent>
           </Tabs>
         </div>
