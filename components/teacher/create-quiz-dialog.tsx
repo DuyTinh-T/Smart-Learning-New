@@ -478,31 +478,31 @@ export function CreateQuizDialog() {
       <DialogTrigger asChild>
         <Button variant="outline">
           <FileText className="h-4 w-4 mr-2" />
-          Create Quiz
+          Tạo Quiz
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Create New Quiz</DialogTitle>
-            <DialogDescription>Build a comprehensive quiz with multiple choice and essay questions</DialogDescription>
+            <DialogTitle>Tạo Quiz Mới</DialogTitle>
+            <DialogDescription>Xây dựng quiz toàn diện với câu hỏi trắc nghiệm và tự luận</DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 py-4">
             <Card>
               <CardContent className="pt-6">
                 <div className="grid gap-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="quiz-title">Quiz Title</Label>
+                    <Label htmlFor="quiz-title">Tên Quiz</Label>
                     <Input 
                       id="quiz-title" 
                       value={quizForm.title}
                       onChange={(e) => setQuizForm(prev => ({ ...prev, title: e.target.value }))}
-                      placeholder="e.g., Module 1 Assessment" 
+                      placeholder="ví dụ: Bài kiểm tra Module 1" 
                       required 
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="course-select">Select Course</Label>
+                    <Label htmlFor="course-select">Chọn Khóa Học</Label>
                     <select
                       id="course-select"
                       value={selectedCourse}
@@ -518,7 +518,7 @@ export function CreateQuizDialog() {
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                       required
                     >
-                      <option value="">Choose a course</option>
+                      <option value="">Chọn khóa học</option>
                       {courses.map((course) => (
                         <option key={course._id} value={course._id}>
                           {course.title}
@@ -529,7 +529,7 @@ export function CreateQuizDialog() {
 
                   {selectedCourse && (
                     <div className="grid gap-2">
-                      <Label htmlFor="lesson-select">Select Lesson</Label>
+                      <Label htmlFor="lesson-select">Chọn Bài Học</Label>
                       <select
                         id="lesson-select"
                         value={selectedLesson}
@@ -539,7 +539,7 @@ export function CreateQuizDialog() {
                         disabled={loadingLessons}
                       >
                         <option value="">
-                          {loadingLessons ? "Loading lessons..." : "Choose a lesson"}
+                          {loadingLessons ? "Đang tải bài học..." : "Chọn bài học"}
                         </option>
                         {lessons.map((lesson) => (
                           <option key={lesson._id} value={lesson._id}>
@@ -549,7 +549,7 @@ export function CreateQuizDialog() {
                       </select>
                       {lessons.length === 0 && !loadingLessons && selectedCourse && (
                         <p className="text-xs text-muted-foreground text-orange-600">
-                          No lessons found for this course. Please add lessons first.
+                          Không tìm thấy bài học cho khóa học này. Vui lòng thêm bài học trước.
                         </p>
                       )}
                     </div>
@@ -557,7 +557,7 @@ export function CreateQuizDialog() {
 
                   <div className="grid grid-cols-3 gap-4">
                     <div className="grid gap-2">
-                      <Label htmlFor="time-limit">Time Limit (min)</Label>
+                      <Label htmlFor="time-limit">Thời Gian (phút)</Label>
                       <Input 
                         id="time-limit" 
                         type="number" 
@@ -567,7 +567,7 @@ export function CreateQuizDialog() {
                       />
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor="passing-score">Passing Score (%)</Label>
+                      <Label htmlFor="passing-score">Điểm Đạt (%)</Label>
                       <Input 
                         id="passing-score" 
                         type="number" 
@@ -578,7 +578,7 @@ export function CreateQuizDialog() {
                       />
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor="attempts">Max Attempts</Label>
+                      <Label htmlFor="attempts">Số Lần Tối Đa</Label>
                       <Input 
                         id="attempts" 
                         type="number" 
@@ -596,9 +596,9 @@ export function CreateQuizDialog() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold">Quiz Questions</h3>
+                  <h3 className="text-lg font-semibold">Câu Hỏi Quiz</h3>
                   <p className="text-sm text-muted-foreground">
-                    {questions.length} {questions.length === 1 ? "question" : "questions"} added
+                    {questions.length} {questions.length === 1 ? "câu hỏi" : "câu hỏi"} đã thêm
                   </p>
                 </div>
               </div>
@@ -688,8 +688,8 @@ export function CreateQuizDialog() {
               <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as QuestionType)} className="w-full">
                 <div className="flex items-center justify-between mb-4">
                   <TabsList className="grid w-[400px] grid-cols-2">
-                    <TabsTrigger value="multiple-choice">Multiple Choice</TabsTrigger>
-                    <TabsTrigger value="essay">Essay Question</TabsTrigger>
+                    <TabsTrigger value="multiple-choice">Trắc nghiệm</TabsTrigger>
+                    <TabsTrigger value="essay">Câu hỏi tự luận</TabsTrigger>
                   </TabsList>
                   <Button type="button" onClick={addQuestion} size="sm">
                     <Plus className="h-4 w-4 mr-2" />
@@ -719,7 +719,7 @@ export function CreateQuizDialog() {
                                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
                                   {questions.filter((q, i) => q.type === "multiple-choice" && i <= qIndex).length}
                                 </span>
-                                <span className="text-sm font-medium">Multiple Choice Question</span>
+                                <span className="text-sm font-medium">Câu hỏi trắc nghiệm</span>
                               </div>
                               <Button
                                 type="button"
@@ -745,7 +745,7 @@ export function CreateQuizDialog() {
 
                             <div className="space-y-3">
                               <div className="flex items-center justify-between">
-                                <Label>Answer Options</Label>
+                                <Label>Các lựa chọn trả lời</Label>
                                 <Button
                                   type="button"
                                   variant="outline"
@@ -828,7 +828,7 @@ export function CreateQuizDialog() {
                                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
                                   {questions.filter((q, i) => q.type === "essay" && i <= qIndex).length}
                                 </span>
-                                <span className="text-sm font-medium">Essay Question</span>
+                                <span className="text-sm font-medium">Câu hỏi tự luận</span>
                               </div>
                               <Button
                                 type="button"
@@ -853,7 +853,7 @@ export function CreateQuizDialog() {
                             </div>
 
                             <div className="grid gap-2">
-                              <Label htmlFor={`max-words-${qIndex}`}>Maximum Word Count</Label>
+                              <Label htmlFor={`max-words-${qIndex}`}>Số từ tối đa</Label>
                               <Input
                                 id={`max-words-${qIndex}`}
                                 type="number"
@@ -881,7 +881,7 @@ export function CreateQuizDialog() {
                   <CardContent className="pt-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium">Quiz Summary</p>
+                        <p className="text-sm font-medium">Tóm tắt Quiz</p>
                         <p className="text-xs text-muted-foreground mt-1">
                           {questions.filter((q) => q.type === "multiple-choice").length} multiple choice,{" "}
                           {questions.filter((q) => q.type === "essay").length} essay
@@ -889,7 +889,7 @@ export function CreateQuizDialog() {
                       </div>
                       <div className="text-right">
                         <p className="text-2xl font-bold">{questions.length}</p>
-                        <p className="text-xs text-muted-foreground">Total Questions</p>
+                        <p className="text-xs text-muted-foreground">Tổng số câu hỏi</p>
                       </div>
                     </div>
                   </CardContent>
@@ -912,7 +912,7 @@ export function CreateQuizDialog() {
                   Creating...
                 </>
               ) : (
-                <>Create Quiz ({questions.length} {questions.length === 1 ? "question" : "questions"})</>
+                <>Tạo Quiz ({questions.length} {questions.length === 1 ? "câu hỏi" : "câu hỏi"})</>
               )}
             </Button>
           </DialogFooter>

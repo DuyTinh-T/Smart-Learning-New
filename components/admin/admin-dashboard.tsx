@@ -181,10 +181,10 @@ const students = [
 ]
 
 const platformStats = [
-  { label: "Total Students", value: "12,456", change: "+12%", icon: Users },
-  { label: "Total Teachers", value: "234", change: "+8%", icon: GraduationCap },
-  { label: "Active Courses", value: "567", change: "+15%", icon: BookOpen },
-  { label: "Platform Revenue", value: "$234,567", change: "+23%", icon: TrendingUp },
+  { label: "Tổng học viên", value: "12,456", change: "+12%", icon: Users },
+  { label: "Tổng giảng viên", value: "234", change: "+8%", icon: GraduationCap },
+  { label: "Khóa học hoạt động", value: "567", change: "+15%", icon: BookOpen },
+  { label: "Doanh thu nền tảng", value: "$234,567", change: "+23%", icon: TrendingUp },
 ]
 
 export function AdminDashboard() {
@@ -339,25 +339,25 @@ export function AdminDashboard() {
   const displayStats = stats
     ? [
         {
-          label: "Total Students",
+          label: "Tổng học viên",
           value: stats.totalStudents.value.toLocaleString(),
           change: stats.totalStudents.change,
           icon: Users,
         },
         {
-          label: "Total Teachers",
+          label: "Tổng giảng viên",
           value: stats.totalTeachers.value.toLocaleString(),
           change: stats.totalTeachers.change,
           icon: GraduationCap,
         },
         {
-          label: "Active Courses",
+          label: "Khóa học hoạt động",
           value: stats.activeCourses.value.toLocaleString(),
           change: stats.activeCourses.change,
           icon: BookOpen,
         },
         {
-          label: "Platform Revenue",
+          label: "Doanh thu nền tảng",
           value: `$${stats.platformRevenue.value.toLocaleString()}`,
           change: stats.platformRevenue.change,
           icon: TrendingUp,
@@ -380,7 +380,7 @@ export function AdminDashboard() {
     return (
       <div className="flex items-center justify-between mt-4 pt-4 border-t">
         <div className="text-sm text-muted-foreground">
-          Page {currentPage} of {totalPages}
+          Trang {currentPage} / {totalPages}
         </div>
         <div className="flex gap-2">
           <Button
@@ -390,7 +390,7 @@ export function AdminDashboard() {
             disabled={currentPage === 1}
           >
             <ChevronLeft className="h-4 w-4 mr-1" />
-            Previous
+            Trước
           </Button>
           <Button
             variant="outline"
@@ -416,7 +416,7 @@ export function AdminDashboard() {
       >
         <div className="flex items-center gap-2 mb-2">
           <Shield className="h-8 w-8 text-primary" />
-          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+          <h1 className="text-3xl font-bold">Trang quản trị</h1>
         </div>
         <p className="text-muted-foreground">Manage teachers, students, and platform operations</p>
       </motion.div>
@@ -454,7 +454,7 @@ export function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stat.value}</div>
-                <p className="text-xs text-muted-foreground">{stat.change} from last month</p>
+                <p className="text-xs text-muted-foreground">{stat.change} từ tháng trước</p>
               </CardContent>
             </Card>
               </motion.div>
@@ -463,9 +463,9 @@ export function AdminDashboard() {
 
           <Tabs defaultValue="teachers" className="space-y-6">
         <TabsList className="bg-card">
-          <TabsTrigger value="teachers">Teachers</TabsTrigger>
-          <TabsTrigger value="students">Students</TabsTrigger>
-          <TabsTrigger value="courses">Courses</TabsTrigger>
+          <TabsTrigger value="teachers">Giảng viên</TabsTrigger>
+          <TabsTrigger value="students">Học viên</TabsTrigger>
+          <TabsTrigger value="courses">Khóa học</TabsTrigger>
         </TabsList>
 
         <TabsContent value="teachers" className="space-y-4">
@@ -473,17 +473,17 @@ export function AdminDashboard() {
             <CardHeader>
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                  <CardTitle>Teacher Management</CardTitle>
-                  <CardDescription>Manage and monitor all teachers on the platform</CardDescription>
+                  <CardTitle>Quản lý giảng viên</CardTitle>
+                  <CardDescription>Quản lý và giám sát tất cả giảng viên trên nền tảng</CardDescription>
                 </div>
                 <div className="flex gap-2">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search teachers..." className="pl-9 w-64" />
+                    <Input placeholder="Tìm kiếm giảng viên..." className="pl-9 w-64" />
                   </div>
                   <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
                     <Users className="h-4 w-4 mr-2" />
-                    Add Teacher
+                    Thêm giảng viên
                   </Button>
                 </div>
               </div>
@@ -492,21 +492,21 @@ export function AdminDashboard() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
+                    <TableHead>Tên</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead>Courses</TableHead>
-                    <TableHead>Students</TableHead>
-                    <TableHead>Rating</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Joined</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>Khóa học</TableHead>
+                    <TableHead>Học viên</TableHead>
+                    <TableHead>Đánh giá</TableHead>
+                    <TableHead>Trạng thái</TableHead>
+                    <TableHead>Tham gia</TableHead>
+                    <TableHead className="text-right">Hành động</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {teachersData.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                        No teachers found
+                        Không tìm thấy giảng viên nào
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -545,11 +545,11 @@ export function AdminDashboard() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuLabel>Hành động</DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handleViewTeacherProfile(teacher.id)}>
                               <UserCheck className="h-4 w-4 mr-2" />
-                              View Profile
+                              Xem hồ sơ
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem 
@@ -557,7 +557,7 @@ export function AdminDashboard() {
                               onClick={() => handleSuspendTeacher(teacher)}
                             >
                               <UserX className="h-4 w-4 mr-2" />
-                              {teacher.status === "active" ? "Suspend Account" : "Activate Account"}
+                              {teacher.status === "active" ? "Tạm khóa tài khoản" : "Kích hoạt tài khoản"}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -581,15 +581,15 @@ export function AdminDashboard() {
             <CardHeader>
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                  <CardTitle>Student Management</CardTitle>
-                  <CardDescription>Manage and monitor all students on the platform</CardDescription>
+                  <CardTitle>Quản lý học viên</CardTitle>
+                  <CardDescription>Quản lý và giám sát tất cả học viên trên nền tảng</CardDescription>
                 </div>
                 <div className="flex gap-2">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search students..." className="pl-9 w-64" />
+                    <Input placeholder="Tìm kiếm học viên..." className="pl-9 w-64" />
                   </div>
-                  <Button variant="outline">Export Data</Button>
+                  <Button variant="outline">Xuất dữ liệu</Button>
                 </div>
               </div>
             </CardHeader>
@@ -597,20 +597,20 @@ export function AdminDashboard() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
+                    <TableHead>Tên</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead>Enrolled Courses</TableHead>
-                    <TableHead>Avg. Progress</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Joined</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>Khóa học đã đăng ký</TableHead>
+                    <TableHead>Tiến độ TB</TableHead>
+                    <TableHead>Trạng thái</TableHead>
+                    <TableHead>Tham gia</TableHead>
+                    <TableHead className="text-right">Hành động</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {studentsData.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                        No students found
+                        Không tìm thấy học viên nào
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -653,15 +653,15 @@ export function AdminDashboard() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuLabel>Hành động</DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handleViewStudentProfile(student.id)}>
                               <UserCheck className="h-4 w-4 mr-2" />
-                              View Profile
+                              Xem hồ sơ
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleViewEnrollments(student)}>
                               <BookOpen className="h-4 w-4 mr-2" />
-                              View Enrollments
+                              Xem khóa học đã đăng ký
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem 
@@ -669,7 +669,7 @@ export function AdminDashboard() {
                               onClick={() => handleSuspendStudent(student)}
                             >
                               <UserX className="h-4 w-4 mr-2" />
-                              {student.status === "active" ? "Suspend Account" : "Activate Account"}
+                              {student.status === "active" ? "Tạm khóa tài khoản" : "Kích hoạt tài khoản"}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -693,15 +693,15 @@ export function AdminDashboard() {
             <CardHeader>
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                  <CardTitle>Course Management</CardTitle>
-                  <CardDescription>Monitor and manage all courses on the platform</CardDescription>
+                  <CardTitle>Quản lý khóa học</CardTitle>
+                  <CardDescription>Giám sát và quản lý tất cả khóa học trên nền tảng</CardDescription>
                 </div>
                 <div className="flex gap-2">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search courses..." className="pl-9 w-64" />
+                    <Input placeholder="Tìm kiếm khóa học..." className="pl-9 w-64" />
                   </div>
-                  <Button variant="outline">Export Data</Button>
+                  <Button variant="outline">Xuất dữ liệu</Button>
                 </div>
               </div>
             </CardHeader>
@@ -709,22 +709,22 @@ export function AdminDashboard() {
               {coursesData.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <BookOpen className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg font-medium mb-2">No Courses Found</p>
-                  <p className="text-sm">There are no courses on the platform yet.</p>
+                  <p className="text-lg font-medium mb-2">Không tìm thấy khóa học nào</p>
+                  <p className="text-sm">Chưa có khóa học nào trên nền tảng.</p>
                 </div>
               ) : (
                 <>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Teacher</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Price</TableHead>
-                      <TableHead>Enrollments</TableHead>
-                      <TableHead>Rating</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead>Tiêu đề</TableHead>
+                      <TableHead>Giảng viên</TableHead>
+                      <TableHead>Danh mục</TableHead>
+                      <TableHead>Giá</TableHead>
+                      <TableHead>Đăng ký</TableHead>
+                      <TableHead>Đánh giá</TableHead>
+                      <TableHead>Trạng thái</TableHead>
+                      <TableHead className="text-right">Hành động</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -739,7 +739,7 @@ export function AdminDashboard() {
                         <TableCell className="font-medium">{course.title}</TableCell>
                         <TableCell className="text-muted-foreground">{course.teacher.name}</TableCell>
                         <TableCell>
-                          <Badge variant="outline">{course.category || 'Uncategorized'}</Badge>
+                          <Badge variant="outline">{course.category || 'Chưa phân loại'}</Badge>
                         </TableCell>
                         <TableCell>${course.price}</TableCell>
                         <TableCell>{course.enrollments}</TableCell>
@@ -755,7 +755,7 @@ export function AdminDashboard() {
                             variant={course.isActive ? "default" : "secondary"}
                             className={course.isActive ? "bg-primary" : ""}
                           >
-                            {course.isActive ? 'active' : 'inactive'}
+                            {course.isActive ? 'hoạt động' : 'không hoạt động'}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
@@ -766,15 +766,15 @@ export function AdminDashboard() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuLabel>Hành động</DropdownMenuLabel>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => handleViewCourse(course)}>
                                 <BookOpen className="h-4 w-4 mr-2" />
-                                View Course
+                                Xem khóa học
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleViewCourseTeacher(course)}>
                                 <UserCheck className="h-4 w-4 mr-2" />
-                                View Teacher
+                                Xem giảng viên
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem 
@@ -782,7 +782,7 @@ export function AdminDashboard() {
                                 onClick={() => handleDeactivateCourse(course)}
                               >
                                 <UserX className="h-4 w-4 mr-2" />
-                                {course.isActive ? 'Deactivate Course' : 'Activate Course'}
+                                {course.isActive ? 'Vô hiệu hóa khóa học' : 'Kích hoạt khóa học'}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>

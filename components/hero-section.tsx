@@ -199,15 +199,15 @@ export function HeroSection() {
                   <div className="flex flex-wrap gap-8 justify-center md:justify-start">
                     <div className="text-center md:text-left">
                       <p className="text-4xl font-bold text-white">10K+</p>
-                      <p className="text-white/80">Active Students</p>
+                      <p className="text-white/80">Học viên tham gia</p>
                     </div>
                     <div className="text-center md:text-left">
                       <p className="text-4xl font-bold text-white">500+</p>
-                      <p className="text-white/80">Courses</p>
+                      <p className="text-white/80">Khóa học</p>
                     </div>
                     <div className="text-center md:text-left">
                       <p className="text-4xl font-bold text-white">50+</p>
-                      <p className="text-white/80">Expert Instructors</p>
+                      <p className="text-white/80">Giảng viên chuyên gia</p>
                     </div>
                   </div>
                 </motion.div>

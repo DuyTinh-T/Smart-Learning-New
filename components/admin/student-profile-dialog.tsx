@@ -130,8 +130,8 @@ export function StudentProfileDialog({ studentId, open, onOpenChange }: StudentP
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Student Profile</DialogTitle>
-          <DialogDescription>Detailed information about the student</DialogDescription>
+          <DialogTitle>Hồ sơ học viên</DialogTitle>
+          <DialogDescription>Thông tin chi tiết về học viên</DialogDescription>
         </DialogHeader>
 
         {loading && (
@@ -249,13 +249,13 @@ export function StudentProfileDialog({ studentId, open, onOpenChange }: StudentP
             {/* Courses Section */}
             <Tabs defaultValue="recent" className="w-full">
               <TabsList>
-                <TabsTrigger value="recent">Recent Activity</TabsTrigger>
-                <TabsTrigger value="all">All Courses</TabsTrigger>
+                <TabsTrigger value="recent">Hoạt động gần đây</TabsTrigger>
+                <TabsTrigger value="all">Tất cả khóa học</TabsTrigger>
               </TabsList>
 
               <TabsContent value="recent" className="space-y-4">
                 {student.recentCourses.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">No courses enrolled</p>
+                  <p className="text-center text-muted-foreground py-8">Chưa đăng ký khóa học nào</p>
                 ) : (
                   <div className="space-y-3">
                     {student.recentCourses.map((course) => (
@@ -282,7 +282,7 @@ export function StudentProfileDialog({ studentId, open, onOpenChange }: StudentP
                             </div>
                             <div className="space-y-1">
                               <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Progress</span>
+                                <span className="text-muted-foreground">Tiến độ</span>
                                 <span className="font-medium">{course.progress}%</span>
                               </div>
                               <Progress value={course.progress} className="h-2" />
@@ -299,11 +299,11 @@ export function StudentProfileDialog({ studentId, open, onOpenChange }: StudentP
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Course</TableHead>
-                      <TableHead>Teacher</TableHead>
-                      <TableHead>Progress</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Enrolled</TableHead>
+                      <TableHead>Khóa học</TableHead>
+                      <TableHead>Giảng viên</TableHead>
+                      <TableHead>Tiến độ</TableHead>
+                      <TableHead>Trạng thái</TableHead>
+                      <TableHead>Đăng ký</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

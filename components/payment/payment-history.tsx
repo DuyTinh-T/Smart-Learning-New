@@ -134,7 +134,7 @@ export function PaymentHistory() {
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-8">
           <CreditCard className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Authentication Required</h3>
+          <h3 className="text-lg font-semibold mb-2">Yêu cầu xác thực</h3>
           <p className="text-muted-foreground text-center mb-4">
             Please log in to view your payment history.
           </p>
