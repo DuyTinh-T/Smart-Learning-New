@@ -146,7 +146,7 @@ export function UserProfile() {
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="h-8 w-8 animate-spin" />
-          <span className="ml-2">Loading profile...</span>
+          <span className="ml-2">Đang tải hồ sơ...</span>
         </div>
       </div>
     )
@@ -156,8 +156,8 @@ export function UserProfile() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-muted-foreground">Please log in to view your profile.</p>
+          <h2 className="text-2xl font-bold mb-2">Truy cập bị từ chối</h2>
+          <p className="text-muted-foreground">Vui lòng đăng nhập để xem hồ sơ của bạn.</p>
         </div>
       </div>
     )
@@ -167,8 +167,8 @@ export function UserProfile() {
     <div className="container mx-auto px-4 py-8">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Profile & Settings</h1>
-          <p className="text-muted-foreground">Manage your account and learning preferences</p>
+          <h1 className="text-3xl font-bold mb-2">Hồ sơ & Cài đặt</h1>
+          <p className="text-muted-foreground">Quản lý tài khoản và tùy chỉnh học tập của bạn</p>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
@@ -191,28 +191,28 @@ export function UserProfile() {
                   <h2 className="text-2xl font-bold mb-1">{user.name}</h2>
                   <p className="text-sm text-muted-foreground mb-4">{user.email}</p>
                   <Badge variant="outline" className="mb-6">
-                    Member since {getJoinDate()}
+                    Thành viên từ {getJoinDate()}
                   </Badge>
 
                   <div className="w-full space-y-4">
                     <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                       <div className="flex items-center gap-2">
                         <BookOpen className="h-4 w-4 text-primary" />
-                        <span className="text-sm">Courses</span>
+                        <span className="text-sm">Khóa học</span>
                       </div>
                       <span className="font-semibold">{staticData.coursesCompleted}</span>
                     </div>
                     <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                       <div className="flex items-center gap-2">
                         <Award className="h-4 w-4 text-accent" />
-                        <span className="text-sm">Certificates</span>
+                        <span className="text-sm">Chứng chỉ</span>
                       </div>
                       <span className="font-semibold">{staticData.certificatesEarned}</span>
                     </div>
                     <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                       <div className="flex items-center gap-2">
                         <Target className="h-4 w-4 text-primary" />
-                        <span className="text-sm">Hours Learned</span>
+                        <span className="text-sm">Giờ học</span>
                       </div>
                       <span className="font-semibold">{staticData.hoursLearned}</span>
                     </div>
@@ -233,28 +233,28 @@ export function UserProfile() {
               <TabsList className="bg-card">
                 <TabsTrigger value="personal">
                   <User className="h-4 w-4 mr-2" />
-                  Personal Info
+                  Thông tin cá nhân
                 </TabsTrigger>
                 <TabsTrigger value="goals">
                   <Target className="h-4 w-4 mr-2" />
-                  Learning Goals
+                  Mục tiêu học tập
                 </TabsTrigger>
                 <TabsTrigger value="notifications">
                   <Bell className="h-4 w-4 mr-2" />
-                  Notifications
+                  Thông báo
                 </TabsTrigger>
               </TabsList>
 
               <TabsContent value="personal" className="space-y-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Personal Information</CardTitle>
-                    <CardDescription>Update your profile details</CardDescription>
+                    <CardTitle>Thông tin cá nhân</CardTitle>
+                    <CardDescription>Cập nhật thông tin hồ sơ của bạn</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <Label htmlFor="name">Full Name</Label>
+                        <Label htmlFor="name">Họ và tên</Label>
                         <Input 
                           id="name" 
                           value={formData.name}
@@ -270,50 +270,50 @@ export function UserProfile() {
                           disabled
                           className="bg-muted"
                         />
-                        <p className="text-xs text-muted-foreground">Email cannot be changed for security reasons</p>
+                        <p className="text-xs text-muted-foreground">Không thể thay đổi email vì lý do bảo mật</p>
                       </div>
                       <div className="space-y-2">
-                        <Label>Role</Label>
+                        <Label>Vai trò</Label>
                         <div className="flex items-center gap-2">
                           <Badge variant="outline" className="capitalize">
                             {user.role}
                           </Badge>
                           <span className="text-sm text-muted-foreground">
-                            Contact admin to change your role
+                            Liên hệ quản trị viên để thay đổi vai trò
                           </span>
                         </div>
                       </div>
 
-                      <CardTitle className="pt-4">Change Password</CardTitle>
+                      <CardTitle className="pt-4">Thay đổi mật khẩu</CardTitle>
                       <div className="space-y-4 p-4 bg-muted/30 rounded-lg">
                         <div className="space-y-2">
-                          <Label htmlFor="currentPassword">Current Password</Label>
+                          <Label htmlFor="currentPassword">Mật khẩu hiện tại</Label>
                           <Input 
                             id="currentPassword" 
                             type="password"
                             value={formData.currentPassword}
                             onChange={(e) => setFormData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                            placeholder="Enter your current password"
+                            placeholder="Nhập mật khẩu hiện tại"
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="newPassword">New Password</Label>
+                          <Label htmlFor="newPassword">Mật khẩu mới</Label>
                           <Input 
                             id="newPassword" 
                             type="password"
                             value={formData.newPassword}
                             onChange={(e) => setFormData(prev => ({ ...prev, newPassword: e.target.value }))}
-                            placeholder="Enter new password (min. 6 characters)"
+                            placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                          <Label htmlFor="confirmPassword">Xác nhận mật khẩu mới</Label>
                           <Input 
                             id="confirmPassword" 
                             type="password"
                             value={formData.confirmPassword}
                             onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                            placeholder="Confirm your new password"
+                            placeholder="Xác nhận mật khẩu mới"
                           />
                         </div>
                         <Button 
@@ -325,10 +325,10 @@ export function UserProfile() {
                           {isUpdating ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Changing Password...
+                              Đang thay đổi mật khẩu...
                             </>
                           ) : (
-                            'Change Password'
+                            'Thay đổi mật khẩu'
                           )}
                         </Button>
                       </div>
@@ -341,10 +341,10 @@ export function UserProfile() {
                       {isUpdating ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Saving Profile...
+                          Đang lưu hồ sơ...
                         </>
                       ) : (
-                        'Save Profile Changes'
+                        'Lưu thay đổi hồ sơ'
                       )}
                     </Button>
                   </CardContent>

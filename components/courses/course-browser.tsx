@@ -45,31 +45,31 @@ interface Course {
 }
 
 const categories = [
-  "All Categories",
-  "Programming", 
-  "Design",
-  "Business",
+  "Tất cả danh mục",
+  "Lập trình", 
+  "Thiết kế",
+  "Kinh doanh",
   "Marketing",
-  "Data Science",
-  "Photography",
-  "Music",
-  "Language"
+  "Khoa học dữ liệu",
+  "Nhiếp ảnh",
+  "Âm nhạc",
+  "Ngôn ngữ"
 ]
 
 const levels = [
-  "All Levels",
-  "Beginner",
-  "Intermediate", 
-  "Advanced"
+  "Tất cả cấp độ",
+  "Mới bắt đầu",
+  "Trung bình",
+  "Nâng cao",
 ]
 
 const sortOptions = [
-  { value: "newest", label: "Newest First" },
-  { value: "oldest", label: "Oldest First" },
-  { value: "rating", label: "Highest Rated" },
-  { value: "students", label: "Most Popular" },
-  { value: "price_low", label: "Price: Low to High" },
-  { value: "price_high", label: "Price: High to Low" }
+  { value: "newest", label: "Mới nhất" },
+  { value: "oldest", label: "Cũ nhất" },
+  { value: "rating", label: "Đánh giá cao nhất" },
+  { value: "students", label: "Phổ biến nhất" },
+  { value: "price_low", label: "Giá: Thấp đến cao" },
+  { value: "price_high", label: "Giá: Cao đến thấp" }
 ]
 
 export function CourseBrowser() {
@@ -85,8 +85,8 @@ export function CourseBrowser() {
 
   // Filters
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("All Categories")
-  const [selectedLevel, setSelectedLevel] = useState("All Levels")
+  const [selectedCategory, setSelectedCategory] = useState("Tất cả danh mục")
+  const [selectedLevel, setSelectedLevel] = useState("Tất cả cấp độ")
   const [sortBy, setSortBy] = useState("newest")
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000])
 
@@ -104,7 +104,7 @@ export function CourseBrowser() {
       setError(null)
       
       const response = await courseApi.getAll({
-        category: selectedCategory !== "All Categories" ? selectedCategory : undefined,
+        category: selectedCategory !== "Tất cả danh mục" ? selectedCategory : undefined,
         sortBy: sortBy === "newest" ? "createdAt" : sortBy,
         sortOrder: sortBy === "oldest" ? "asc" : "desc",
         page: 1,
@@ -161,12 +161,12 @@ export function CourseBrowser() {
     }
 
     // Category filter
-    if (selectedCategory !== "All Categories") {
+    if (selectedCategory !== "Tất cả danh mục") {
       filtered = filtered.filter(course => course.category === selectedCategory)
     }
 
     // Level filter
-    if (selectedLevel !== "All Levels") {
+    if (selectedLevel !== "Tất cả cấp độ") {
       filtered = filtered.filter(course => course.level === selectedLevel)
     }
 
@@ -225,8 +225,8 @@ export function CourseBrowser() {
       if (response.success) {
         setEnrolledCourseIds(prev => new Set([...prev, courseId]))
         toast({
-          title: "Enrollment Successful!",
-          description: "You have been enrolled in this course. Start learning now!",
+          title: "Đăng ký thành công!",
+          description: "Bạn đã đăng ký khóa học này. Bắt đầu học ngay!",
         })
       } else {
         throw new Error(response.error || 'Enrollment failed')
@@ -250,8 +250,8 @@ export function CourseBrowser() {
 
   const resetFilters = () => {
     setSearchTerm("")
-    setSelectedCategory("All Categories")
-    setSelectedLevel("All Levels")
+    setSelectedCategory("Tất cả danh mục")
+    setSelectedLevel("Tất cả cấp độ")
     setSortBy("newest")
     setPriceRange([0, 1000])
   }
@@ -268,7 +268,7 @@ export function CourseBrowser() {
             className="text-center"
           >
             <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              Discover Amazing <span className="text-primary">Courses</span>
+              Khám phá các <span className="text-primary">Khóa học</span> Tuyệt vời
             </h1>
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
               Learn new skills, advance your career, and achieve your goals with our comprehensive course catalog.
@@ -280,7 +280,7 @@ export function CourseBrowser() {
                 <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
                 <Input
                   type="text"
-                  placeholder="Search for courses, instructors, or topics..."
+                  placeholder="Tìm kiếm khóa học, giảng viên hoặc chủ đề..."
                   className="pl-12 pr-4 py-6 text-lg"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -355,13 +355,13 @@ export function CourseBrowser() {
             <div className="flex justify-center items-center py-20">
               <div className="flex items-center gap-3">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-lg">Loading courses...</p>
+                <p className="text-lg">Đang tải khóa học...</p>
               </div>
             </div>
           ) : error ? (
             <div className="text-center py-20">
               <AlertCircle className="h-16 w-16 text-destructive mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">Failed to Load Courses</h3>
+              <h3 className="text-xl font-semibold mb-2">Không thể tải khóa học</h3>
               <p className="text-muted-foreground mb-4">{error}</p>
               <Button onClick={loadCourses}>
                 Try Again
@@ -370,9 +370,9 @@ export function CourseBrowser() {
           ) : filteredCourses.length === 0 ? (
             <div className="text-center py-20">
               <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-              <h3 className="text-xl font-semibold mb-2">No Courses Found</h3>
+              <h3 className="text-xl font-semibold mb-2">Không tìm thấy khóa học nào</h3>
               <p className="text-muted-foreground mb-4">
-                Try adjusting your search criteria or filters
+                Thử điều chỉnh tiêu chí tìm kiếm hoặc bộ lọc
               </p>
               <Button onClick={resetFilters}>
                 Reset Filters
@@ -491,7 +491,7 @@ export function CourseBrowser() {
                               <Button className="w-full" asChild>
                                 <Link href={`/student/courses/${course._id}`}>
                                   <PlayCircle className="h-4 w-4 mr-2" />
-                                  Continue Learning
+                                  Tiếp tục học
                                 </Link>
                               </Button>
                               <Button variant="outline" className="w-full" asChild>

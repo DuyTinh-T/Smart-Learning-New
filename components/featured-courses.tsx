@@ -52,7 +52,7 @@ export function FeaturedCourses() {
       <section className="py-20 bg-muted/30">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl mb-4">Featured Courses</h2>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl mb-4">Khóa học nổi bật</h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Explore our most popular courses and start your learning journey today
             </p>
@@ -96,7 +96,7 @@ export function FeaturedCourses() {
           transition={{ duration: 0.5 }}
           className="text-center mb-12"
         >
-          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl mb-4">Featured Courses</h2>
+          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl mb-4">Khóa học nổi bật</h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Explore our most popular courses and start your learning journey today
           </p>
@@ -138,7 +138,7 @@ export function FeaturedCourses() {
                     </div>
                     <div className="flex items-center gap-1">
                       <Users className="h-4 w-4" />
-                      <span>New</span>
+                      <span>Mới</span>
                     </div>
                     {course.price && (
                       <div className="flex items-center gap-1">
@@ -150,7 +150,7 @@ export function FeaturedCourses() {
                 </CardContent>
                 <CardFooter>
                   <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90" asChild>
-                    <Link href={`/courses/${course._id}`}>View Course</Link>
+                    <Link href={`/courses/${course._id}`}>Xem khóa học</Link>
                   </Button>
                 </CardFooter>
               </Card>
@@ -166,7 +166,7 @@ export function FeaturedCourses() {
           className="text-center mt-12"
         >
           <Button variant="outline" size="lg" asChild>
-            <Link href="/courses">View All Courses</Link>
+            <Link href="/courses">Xem tất cả khóa học</Link>
           </Button>
         </motion.div>
       </div>

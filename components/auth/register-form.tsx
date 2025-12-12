@@ -28,7 +28,7 @@ export function RegisterForm() {
     e.preventDefault()
 
     if (password !== confirmPassword) {
-      alert("Passwords do not match")
+      alert("Mật khẩu không khớp")
       return
     }
 
@@ -66,24 +66,24 @@ export function RegisterForm() {
               <BookOpen className="h-8 w-8 text-primary-foreground" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Create an account</CardTitle>
-          <CardDescription>Join LearnHub and start your learning journey</CardDescription>
+          <CardTitle className="text-2xl font-bold">Tạo tài khoản</CardTitle>
+          <CardDescription>Tham gia LearnHub và bắt đầu hành trình học tập của bạn</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs value={role} onValueChange={(value) => setRole(value as "student" | "teacher" | "admin")}>
             <TabsList className="grid w-full grid-cols-3 mb-6">
-              <TabsTrigger value="student">Student</TabsTrigger>
-              <TabsTrigger value="teacher">Teacher</TabsTrigger>
-              <TabsTrigger value="admin">Admin</TabsTrigger>
+              <TabsTrigger value="student">Học viên</TabsTrigger>
+              <TabsTrigger value="teacher">Giảng viên</TabsTrigger>
+              <TabsTrigger value="admin">Quản trị</TabsTrigger>
             </TabsList>
             <TabsContent value={role}>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
+                  <Label htmlFor="name">Họ và tên</Label>
                   <Input
                     id="name"
                     type="text"
-                    placeholder="John Doe"
+                    placeholder="Nguyễn Văn A"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
@@ -95,7 +95,7 @@ export function RegisterForm() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="name@example.com"
+                    placeholder="ten@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -103,7 +103,7 @@ export function RegisterForm() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password">Mật khẩu</Label>
                   <Input
                     id="password"
                     type="password"
@@ -115,7 +115,7 @@ export function RegisterForm() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Label htmlFor="confirmPassword">Xác nhận mật khẩu</Label>
                   <Input
                     id="confirmPassword"
                     type="password"
@@ -130,10 +130,10 @@ export function RegisterForm() {
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating account...
+                      Đang tạo tài khoản...
                     </>
                   ) : (
-                    "Create account"
+                    "Tạo tài khoản"
                   )}
                 </Button>
               </form>
@@ -142,9 +142,9 @@ export function RegisterForm() {
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
           <div className="text-sm text-center text-muted-foreground">
-            Already have an account?{" "}
+            Đã có tài khoản?{" "}
             <Link href="/login" className="text-primary hover:underline font-medium">
-              Sign in
+              Đăng nhập
             </Link>
           </div>
         </CardFooter>

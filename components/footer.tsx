@@ -11,7 +11,7 @@ export function Footer() {
               <img src="/logo-new.png" alt="LearnHub Logo" />
             </Link>
             <p className="text-sm text-muted-foreground mb-4">
-              Empowering learners worldwide with quality education and expert instruction.
+              Trao quyền cho người học trên toàn thế giới với giáo dục chất lượng và đội ngũ gi强ng viên chuyên nghiệp.
             </p>
             <div className="flex gap-3">
               <Link href="#" className="text-muted-foreground hover:text-primary transition-colors">
@@ -30,42 +30,42 @@ export function Footer() {
           </div>
 
           <div>
-            <h3 className="font-semibold mb-4">Platform</h3>
+            <h3 className="font-semibold mb-4">Nền tảng</h3>
             <ul className="space-y-2 text-sm">
               <li>
                 <Link href="/courses" className="text-muted-foreground hover:text-primary transition-colors">
-                  Browse Courses
+                  Duyệt khóa học
                 </Link>
               </li>
               <li>
                 <Link href="/student/dashboard" className="text-muted-foreground hover:text-primary transition-colors">
-                  Student Dashboard
+                  Bảng điều khiển học viên
                 </Link>
               </li>
               <li>
                 <Link href="/teacher/dashboard" className="text-muted-foreground hover:text-primary transition-colors">
-                  Teacher Dashboard
+                  Bảng điều khiển giảng viên
                 </Link>
               </li>
               <li>
                 <Link href="/pricing" className="text-muted-foreground hover:text-primary transition-colors">
-                  Pricing
+                  Bảng giá
                 </Link>
               </li>
             </ul>
           </div>
 
           <div>
-            <h3 className="font-semibold mb-4">Company</h3>
+            <h3 className="font-semibold mb-4">Công ty</h3>
             <ul className="space-y-2 text-sm">
               <li>
                 <Link href="/about" className="text-muted-foreground hover:text-primary transition-colors">
-                  About Us
+                  Giới thiệu về chúng tôi
                 </Link>
               </li>
               <li>
                 <Link href="/careers" className="text-muted-foreground hover:text-primary transition-colors">
-                  Careers
+                  Tuyển dụng
                 </Link>
               </li>
               <li>
@@ -75,28 +75,28 @@ export function Footer() {
               </li>
               <li>
                 <Link href="/contact" className="text-muted-foreground hover:text-primary transition-colors">
-                  Contact
+                  Liên hệ
                 </Link>
               </li>
             </ul>
           </div>
 
           <div>
-            <h3 className="font-semibold mb-4">Support</h3>
+            <h3 className="font-semibold mb-4">Hỗ trợ</h3>
             <ul className="space-y-2 text-sm">
               <li>
                 <Link href="/help" className="text-muted-foreground hover:text-primary transition-colors">
-                  Help Center
+                  Trung tâm hỗ trợ
                 </Link>
               </li>
               <li>
                 <Link href="/terms" className="text-muted-foreground hover:text-primary transition-colors">
-                  Terms of Service
+                  Điều khoản dịch vụ
                 </Link>
               </li>
               <li>
                 <Link href="/privacy" className="text-muted-foreground hover:text-primary transition-colors">
-                  Privacy Policy
+                  Chính sách bảo mật
                 </Link>
               </li>
               <li>
@@ -109,7 +109,7 @@ export function Footer() {
         </div>
 
         <div className="border-t mt-8 pt-8 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} LearnHub. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} LearnHub. Bảo lưu mọi quyền.</p>
         </div>
       </div>
     </footer>

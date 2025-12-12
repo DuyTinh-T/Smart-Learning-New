@@ -66,7 +66,7 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
     if (!user) {
       toast({
         title: "Authentication Required",
-        description: "Please log in to enroll in this course.",
+        description: "Vui lòng đăng nhập để đăng ký khóa học này.",
         variant: "destructive"
       })
       return
@@ -75,7 +75,7 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
     if (user.role !== 'student') {
       toast({
         title: "Access Denied", 
-        description: "Only students can enroll in courses.",
+        description: "Chỉ học viên mới có thể đăng ký khóa học.",
         variant: "destructive"
       })
       return
@@ -87,8 +87,8 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
       
       if (response.success) {
         toast({
-          title: "Enrollment Successful!",
-          description: "You have been enrolled in this course. Welcome!",
+          title: "Đăng ký thành công!",
+          description: "Bạn đã đăng ký khóa học này thành công. Chào mừng!",
         })
         
         // Update local state to show enrolled status
@@ -106,7 +106,7 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
       console.error('Enrollment error:', error)
       const errorMessage = error instanceof Error ? error.message : 'Failed to enroll in course'
       toast({
-        title: "Enrollment Failed",
+        title: "Đăng ký thất bại",
         description: errorMessage,
         variant: "destructive"
       })
@@ -118,8 +118,8 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
   const handleBookmark = async () => {
     if (!user) {
       toast({
-        title: "Authentication Required",
-        description: "Please log in to bookmark courses.",
+        title: "Yêu cầu xác thực",
+        description: "Vui lòng đăng nhập để đánh dấu khóa học.",
         variant: "destructive"
       })
       return
@@ -127,8 +127,8 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
 
     if (user.role !== 'student') {
       toast({
-        title: "Access Denied",
-        description: "Only students can bookmark courses.",
+        title: "Truy cập bị từ chối",
+        description: "Chỉ học viên mới có thể đánh dấu khóa học.",
         variant: "destructive"
       })
       return
@@ -147,8 +147,8 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
         if (data.success) {
           setIsBookmarked(false)
           toast({
-            title: "Removed",
-            description: "Course removed from bookmarks"
+            title: "Đã gỡ",
+            description: "Khóa học đã được gỡ khỏi danh sách đánh dấu"
           })
         } else {
           throw new Error(data.error || "Failed to remove bookmark")
@@ -165,8 +165,8 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
         if (data.success) {
           setIsBookmarked(true)
           toast({
-            title: "Bookmarked!",
-            description: "Course added to your bookmarks"
+            title: "Đã đánh dấu!",
+            description: "Khóa học đã được thêm vào danh sách đánh dấu"
           })
         } else {
           throw new Error(data.error || "Failed to add bookmark")
@@ -284,7 +284,7 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 flex items-center justify-center">
         <div className="flex items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-lg">Loading course...</p>
+          <p className="text-lg">Đang tải khóa học...</p>
         </div>
       </div>
     )
@@ -295,10 +295,10 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 flex items-center justify-center">
         <div className="text-center space-y-4">
           <AlertCircle className="h-16 w-16 text-destructive mx-auto" />
-          <h2 className="text-2xl font-bold">Course Not Found</h2>
-          <p className="text-muted-foreground">{error || "The course you're looking for doesn't exist."}</p>
+          <h2 className="text-2xl font-bold">Không tìm thấy khóa học</h2>
+          <p className="text-muted-foreground">{error || "Khóa học bạn tìm kiếm không tồn tại."}</p>
           <Button asChild>
-            <Link href="/courses">Browse Courses</Link>
+            <Link href="/courses">Duyệt khóa học</Link>
           </Button>
         </div>
       </div>
@@ -333,11 +333,11 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
                 <div className="flex items-center gap-2">
                   <Star className="h-5 w-5 fill-accent text-accent" />
                   <span className="font-semibold">{courseData.rating}</span>
-                  <span className="text-muted-foreground">({courseData.reviews} reviews)</span>
+                  <span className="text-muted-foreground">({courseData.reviews} đánh giá)</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Users className="h-5 w-5 text-primary" />
-                  <span>{courseData.students?.toLocaleString() || '0'} students</span>
+                  <span>{courseData.students?.toLocaleString() || '0'} học viên</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Clock className="h-5 w-5 text-primary" />
@@ -345,7 +345,7 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
                 </div>
               </div>
               <div className="mt-6">
-                <p className="text-sm text-muted-foreground mb-1">Instructor</p>
+                <p className="text-sm text-muted-foreground mb-1">Giảng viên</p>
                 <p className="font-semibold">{courseData.instructor}</p>
               </div>
             </motion.div>
@@ -368,13 +368,13 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
                     <div className="space-y-4">
                       <div>
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium">Your Progress</span>
+                          <span className="text-sm font-medium">Tiến độ của bạn</span>
                           <span className="text-sm text-muted-foreground">{courseData.progress}%</span>
                         </div>
                         <Progress value={courseData.progress} className="h-2" />
                       </div>
                       <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90" asChild>
-                        <Link href={`/student/courses/${courseData.id}`}>Continue Learning</Link>
+                        <Link href={`/student/courses/${courseData.id}`}>Tiếp tục học</Link>
                       </Button>
                     </div>
                   ) : (
@@ -398,8 +398,8 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
                         </p>
                         <p className="text-sm text-muted-foreground">
                           {courseData.price && courseData.price > 0 
-                            ? 'One-time payment' 
-                            : 'No cost to enroll'
+                            ? 'Thanh toán một lần' 
+                            : 'Miễn phí đăng ký'
                           }
                         </p>
                       </div>
@@ -418,7 +418,7 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
                           className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
                           onClick={handleEnrollment}
                         >
-                          Enroll for Free
+                          Đăng ký miễn phí
                         </Button>
                       )}
 
@@ -434,12 +434,12 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
                           ) : isBookmarked ? (
                             <>
                               <BookmarkCheck className="h-4 w-4 mr-2" />
-                              Bookmarked
+                              Đã đánh dấu
                             </>
                           ) : (
                             <>
                               <Bookmark className="h-4 w-4 mr-2" />
-                              Add to Wishlist
+                              Thêm vào danh sách yêu thích
                             </>
                           )}
                         </Button>
@@ -458,18 +458,18 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
         <div className="container mx-auto px-4">
           <Tabs defaultValue="curriculum" className="space-y-6">
             <TabsList className="bg-card">
-              <TabsTrigger value="curriculum">Curriculum</TabsTrigger>
-              <TabsTrigger value="reviews">Reviews</TabsTrigger>
+              <TabsTrigger value="curriculum">Chương trình học</TabsTrigger>
+              <TabsTrigger value="reviews">Đánh giá</TabsTrigger>
             </TabsList>
 
             <TabsContent value="curriculum" className="space-y-4">
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
                 <Card>
                   <CardHeader>
-                    <CardTitle>Course Curriculum</CardTitle>
+                    <CardTitle>Chương trình học</CardTitle>
                     <CardDescription>
                       {courseData.modules.length} modules •{" "}
-                      {courseData.modules.reduce((acc, m) => acc + m.lessons.length, 0)} lessons
+                      {courseData.modules.reduce((acc, m) => acc + m.lessons.length, 0)} bài học
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -486,7 +486,7 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
                               <BookOpen className="h-5 w-5 text-primary" />
                               <h3 className="font-semibold">{module.title}</h3>
                             </div>
-                            <Badge variant="outline">{module.lessons.length} lessons</Badge>
+                            <Badge variant="outline">{module.lessons.length} bài học</Badge>
                           </div>
                           <div className="divide-y">
                             {module.lessons.map((lesson) => (
@@ -509,7 +509,7 @@ export default function CourseDetail({ courseId }: CourseDetailProps) {
                                   {!lesson.locked && courseData.enrolled && (
                                     <Button size="sm" variant="ghost" asChild>
                                       <Link href={`/student/courses/${courseData.id}/lessons/${lesson.id}`}>
-                                        {lesson.completed ? "Review" : "Start"}
+                                        {lesson.completed ? "Xem lại" : "Bắt đầu"}
                                       </Link>
                                     </Button>
                                   )}

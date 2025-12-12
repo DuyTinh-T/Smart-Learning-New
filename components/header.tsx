@@ -42,18 +42,18 @@ export function Header() {
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-6">
           <Link href="/courses" className="text-sm font-medium transition-colors hover:text-primary">
-            Courses
+            Khóa học
           </Link>
           {user?.role === "student" && (
             <Link href="/bookmarks" className="text-sm font-medium transition-colors hover:text-primary">
-              Bookmarks
+              Đánh dấu
             </Link>
           )}
           <Link href="/about" className="text-sm font-medium transition-colors hover:text-primary">
-            About
+            Giới thiệu
           </Link>
           <Link href="/contact" className="text-sm font-medium transition-colors hover:text-primary">
-            Contact
+            Liên hệ
           </Link>
         </nav>
 
@@ -75,12 +75,12 @@ export function Header() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuLabel>Tài khoản của tôi</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link href="/profile" className="cursor-pointer">
                       <User className="mr-2 h-4 w-4" />
-                      Profile
+                      Hồ sơ
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
@@ -95,13 +95,13 @@ export function Header() {
                       className="cursor-pointer"
                     >
                       <BookOpen className="mr-2 h-4 w-4" />
-                      Dashboard
+                      Bảng điều khiển
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={logout} className="cursor-pointer text-red-600">
                     <LogOut className="mr-2 h-4 w-4" />
-                    Logout
+                    Đăng xuất
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -131,7 +131,7 @@ export function Header() {
                   className="text-lg font-medium transition-colors hover:text-primary"
                   onClick={() => setIsOpen(false)}
                 >
-                  Courses
+                  Khóa học
                 </Link>
                 {user?.role === "student" && (
                   <Link
@@ -139,7 +139,7 @@ export function Header() {
                     className="text-lg font-medium transition-colors hover:text-primary"
                     onClick={() => setIsOpen(false)}
                   >
-                    Bookmarks
+                    Đánh dấu
                   </Link>
                 )}
                 <Link
@@ -147,14 +147,14 @@ export function Header() {
                   className="text-lg font-medium transition-colors hover:text-primary"
                   onClick={() => setIsOpen(false)}
                 >
-                  About
+                  Giới thiệu
                 </Link>
                 <Link
                   href="/contact"
                   className="text-lg font-medium transition-colors hover:text-primary"
                   onClick={() => setIsOpen(false)}
                 >
-                  Contact
+                  Liên hệ
                 </Link>
                 <div className="flex flex-col gap-3 mt-4">
                   {user ? (
@@ -170,7 +170,7 @@ export function Header() {
                         </div>
                       </div>
                       <Button variant="outline" asChild onClick={() => setIsOpen(false)}>
-                        <Link href="/profile">Profile</Link>
+                        <Link href="/profile">Hồ sơ</Link>
                       </Button>
                       <Button variant="outline" asChild onClick={() => setIsOpen(false)}>
                         <Link
@@ -182,7 +182,7 @@ export function Header() {
                                 : "/student/dashboard"
                           }
                         >
-                          Dashboard
+                          Bảng điều khiển
                         </Link>
                       </Button>
                       <Button
@@ -192,20 +192,20 @@ export function Header() {
                           setIsOpen(false)
                         }}
                       >
-                        Logout
+                        Đăng xuất
                       </Button>
                     </>
                   ) : (
                     <>
                       <Button variant="outline" asChild onClick={() => setIsOpen(false)}>
-                        <Link href="/login">Login</Link>
+                        <Link href="/login">Đăng nhập</Link>
                       </Button>
                       <Button
                         className="bg-accent text-accent-foreground hover:bg-accent/90"
                         asChild
                         onClick={() => setIsOpen(false)}
                       >
-                        <Link href="/register">Get Started</Link>
+                        <Link href="/register">Bắt đầu</Link>
                       </Button>
                     </>
                   )}

@@ -221,7 +221,7 @@ export function StudentDashboard() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Please log in to view your dashboard</h2>
+          <h2 className="text-2xl font-bold mb-4">Vui lòng đăng nhập để xem bảng điều khiển</h2>
         </div>
       </div>
     )
@@ -231,8 +231,8 @@ export function StudentDashboard() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Student Dashboard</h2>
-          <p className="text-muted-foreground">This dashboard is only available for students.</p>
+          <h2 className="text-2xl font-bold mb-4">Bảng Điều Khiển Học Sinh</h2>
+          <p className="text-muted-foreground">Bảng điều khiển này chỉ dành cho học sinh.</p>
         </div>
       </div>
     )
@@ -248,14 +248,14 @@ export function StudentDashboard() {
       >
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Welcome back, {user?.name || 'Student'}!</h1>
-            <p className="text-muted-foreground">Continue your learning journey</p>
+            <h1 className="text-3xl font-bold mb-2">Chào mừng trở lại, {user?.name || 'Học sinh'}!</h1>
+            <p className="text-muted-foreground">Tiếp tục hành trình học tập của bạn</p>
           </div>
           <div className="flex gap-3">
             <Link href="/student/join">
               <Button className="flex items-center gap-2">
                 <TestTube className="h-4 w-4" />
-                Join Exam Room
+                Tham Gia Phòng Thi
               </Button>
             </Link>
             <Button 
@@ -269,7 +269,7 @@ export function StudentDashboard() {
               ) : (
                 <TrendingUp className="h-4 w-4" />
               )}
-              Refresh
+              Làm mới
             </Button>
           </div>
         </div>
@@ -284,14 +284,14 @@ export function StudentDashboard() {
         >
           <Card className="transition-all hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Enrolled Courses</CardTitle>
+              <CardTitle className="text-sm font-medium">Khóa Học Đã Đăng Ký</CardTitle>
               <BookOpen className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
                 {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.totalEnrolled}
               </div>
-              <p className="text-xs text-muted-foreground">Active learning paths</p>
+              <p className="text-xs text-muted-foreground">Lộ trình học tập đang hoạt động</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -303,14 +303,14 @@ export function StudentDashboard() {
         >
           <Card className="transition-all hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Hours Learned</CardTitle>
+              <CardTitle className="text-sm font-medium">Giờ Học</CardTitle>
               <Clock className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
                 {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.totalHoursLearned}
               </div>
-              <p className="text-xs text-muted-foreground">This month</p>
+              <p className="text-xs text-muted-foreground">Tháng này</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -322,14 +322,14 @@ export function StudentDashboard() {
         >
           <Card className="transition-all hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Certificates</CardTitle>
+              <CardTitle className="text-sm font-medium">Chứng Chỉ</CardTitle>
               <Award className="h-4 w-4 text-accent" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
                 {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.certificatesEarned}
               </div>
-              <p className="text-xs text-muted-foreground">Earned so far</p>
+              <p className="text-xs text-muted-foreground">Đã đạt được</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -341,14 +341,14 @@ export function StudentDashboard() {
         >
           <Card className="transition-all hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Avg. Progress</CardTitle>
+              <CardTitle className="text-sm font-medium">Tiến Độ TB</CardTitle>
               <TrendingUp className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
                 {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : `${stats.averageProgress}%`}
               </div>
-              <p className="text-xs text-muted-foreground">Across all courses</p>
+              <p className="text-xs text-muted-foreground">Trên tất cả khóa học</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -356,10 +356,10 @@ export function StudentDashboard() {
 
       <Tabs defaultValue="courses" className="space-y-6">
         <TabsList className="bg-card">
-          <TabsTrigger value="courses">My Courses</TabsTrigger>
+          <TabsTrigger value="courses">Khóa Học Của Tôi</TabsTrigger>
           <TabsTrigger value="recommendations">
             <Sparkles className="h-4 w-4 mr-2" />
-            AI Recommendations
+            Gợi Ý Từ AI
           </TabsTrigger>
         </TabsList>
 
@@ -368,18 +368,18 @@ export function StudentDashboard() {
             <div className="flex justify-center items-center py-12">
               <div className="flex items-center gap-2">
                 <Loader2 className="h-6 w-6 animate-spin" />
-                <span>Loading your courses...</span>
+                <span>Đang tải khóa học của bạn...</span>
               </div>
             </div>
           ) : error ? (
             <Card>
               <CardContent className="text-center py-12">
-                <p className="text-muted-foreground mb-4">Failed to load courses</p>
+                <p className="text-muted-foreground mb-4">Không thể tải khóa học</p>
                 <Button 
                   variant="outline" 
                   onClick={() => window.location.reload()}
                 >
-                  Try Again
+                  Thử Lại
                 </Button>
               </CardContent>
             </Card>
@@ -387,12 +387,12 @@ export function StudentDashboard() {
             <Card>
               <CardContent className="text-center py-12">
                 <BookOpen className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <h3 className="text-lg font-semibold mb-2">No Courses Enrolled</h3>
+                <h3 className="text-lg font-semibold mb-2">Chưa Đăng Ký Khóa Học Nào</h3>
                 <p className="text-muted-foreground mb-4">
-                  Start your learning journey by enrolling in your first course!
+                  Bắt đầu hành trình học tập bằng cách đăng ký khóa học đầu tiên!
                 </p>
                 <Button asChild>
-                  <Link href="/courses">Browse Courses</Link>
+                  <Link href="/courses">Duyệt Khóa Học</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -421,26 +421,26 @@ export function StudentDashboard() {
                         <div className="space-y-3">
                           <div>
                             <div className="flex items-center justify-between mb-2">
-                              <span className="text-sm font-medium">Progress</span>
+                              <span className="text-sm font-medium">Tiến Độ</span>
                               <span className="text-sm text-muted-foreground">
-                                {course.completedLessons}/{course.totalLessons} lessons
+                                {course.completedLessons}/{course.totalLessons} bài học
                               </span>
                             </div>
                             <Progress value={course.progress} className="h-2" />
-                            <p className="text-xs text-muted-foreground mt-1">{course.progress}% complete</p>
+                            <p className="text-xs text-muted-foreground mt-1">{course.progress}% hoàn thành</p>
                           </div>
                           <div className="flex items-center gap-2 text-sm">
                             <Play className="h-4 w-4 text-primary" />
-                            <span>Next: {course.nextLesson}</span>
+                            <span>Tiếp theo: {course.nextLesson}</span>
                           </div>
                         </div>
                       </div>
                       <div className="flex flex-col gap-2">
                         <Button className="bg-primary text-primary-foreground hover:bg-primary/90" asChild>
-                          <Link href={`/student/courses/${course.id}`}>Continue Learning</Link>
+                          <Link href={`/student/courses/${course.id}`}>Tiếp Tục Học</Link>
                         </Button>
                         <Button variant="outline" asChild>
-                          <Link href={`/courses/${course.id}`}>View Details</Link>
+                          <Link href={`/courses/${course.id}`}>Xem Chi Tiết</Link>
                         </Button>
                       </div>
                     </div>

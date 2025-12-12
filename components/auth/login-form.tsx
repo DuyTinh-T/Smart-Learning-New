@@ -49,15 +49,15 @@ export function LoginForm() {
               <BookOpen className="h-8 w-8 text-primary-foreground" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
-          <CardDescription>Sign in to your LearnHub account</CardDescription>
+          <CardTitle className="text-2xl font-bold">Chào mừng trở lại</CardTitle>
+          <CardDescription>Đăng nhập vào tài khoản LearnHub của bạn</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs value={role} onValueChange={(value) => setRole(value as "student" | "teacher" | "admin")}>
             <TabsList className="grid w-full grid-cols-3 mb-6">
-              <TabsTrigger value="student">Student</TabsTrigger>
-              <TabsTrigger value="teacher">Teacher</TabsTrigger>
-              <TabsTrigger value="admin">Admin</TabsTrigger>
+              <TabsTrigger value="student">Học viên</TabsTrigger>
+              <TabsTrigger value="teacher">Giảng viên</TabsTrigger>
+              <TabsTrigger value="admin">Quản trị</TabsTrigger>
             </TabsList>
             <TabsContent value={role}>
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -66,7 +66,7 @@ export function LoginForm() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="name@example.com"
+                    placeholder="ten@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -74,7 +74,7 @@ export function LoginForm() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password">Mật khẩu</Label>
                   <Input
                     id="password"
                     type="password"
@@ -89,10 +89,10 @@ export function LoginForm() {
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Signing in...
+                      Đang đăng nhập...
                     </>
                   ) : (
-                    "Sign in"
+                    "Đăng nhập"
                   )}
                 </Button>
               </form>
@@ -101,9 +101,9 @@ export function LoginForm() {
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
           <div className="text-sm text-center text-muted-foreground">
-            Don't have an account?{" "}
+            Chưa có tài khoản?{" "}
             <Link href="/register" className="text-primary hover:underline font-medium">
-              Sign up
+              Đăng ký
             </Link>
           </div>
         </CardFooter>

@@ -103,25 +103,25 @@ export function PaymentSuccessContent() {
                 <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
                   <Play className="w-4 h-4 text-green-600" />
                 </div>
-                <span className="text-sm">Video lessons</span>
+                <span className="text-sm">Bài học video</span>
               </div>
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
                   <BookOpen className="w-4 h-4 text-green-600" />
                 </div>
-                <span className="text-sm">Course materials</span>
+                <span className="text-sm">Tài liệu khóa học</span>
               </div>
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
                   <CheckCircle className="w-4 h-4 text-green-600" />
                 </div>
-                <span className="text-sm">Progress tracking</span>
+                <span className="text-sm">Theo dõi tiến độ</span>
               </div>
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
                   <ArrowRight className="w-4 h-4 text-green-600" />
                 </div>
-                <span className="text-sm">Lifetime access</span>
+                <span className="text-sm">Truy cập trọn đời</span>
               </div>
             </div>
 

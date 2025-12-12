@@ -71,14 +71,14 @@ export function TeacherDashboard() {
         className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
       >
         <div>
-          <h1 className="text-3xl font-bold mb-2">Teacher Dashboard</h1>
-          <p className="text-muted-foreground">Manage your courses and track student progress</p>
+          <h1 className="text-3xl font-bold mb-2">Trang quản lý giảng viên</h1>
+          <p className="text-muted-foreground">Quản lý khóa học và theo dõi tiến độ học viên</p>
         </div>
         <div className="flex gap-3">
           <Link href="/teacher/rooms">
             <Button variant="outline" className="flex items-center gap-2">
               <TestTube className="h-4 w-4" />
-              Exam Rooms
+              Phòng thi
             </Button>
           </Link>
           <CreateCourseDialog />
@@ -95,12 +95,12 @@ export function TeacherDashboard() {
         >
           <Card className="transition-all hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Students</CardTitle>
+              <CardTitle className="text-sm font-medium">Tổng học viên</CardTitle>
               <Users className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">2,126</div>
-              <p className="text-xs text-muted-foreground">+180 this month</p>
+              <p className="text-xs text-muted-foreground">+180 tháng này</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -112,12 +112,12 @@ export function TeacherDashboard() {
         >
           <Card className="transition-all hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Active Courses</CardTitle>
+              <CardTitle className="text-sm font-medium">Khóa học đang hoạt động</CardTitle>
               <BookOpen className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{teacherCourses.filter((c) => c.status === "Published").length}</div>
-              <p className="text-xs text-muted-foreground">1 in draft</p>
+              <p className="text-xs text-muted-foreground">1 bản nháp</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -129,12 +129,12 @@ export function TeacherDashboard() {
         >
           <Card className="transition-all hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+              <CardTitle className="text-sm font-medium">Tổng doanh thu</CardTitle>
               <DollarSign className="h-4 w-4 text-accent" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">$21,260</div>
-              <p className="text-xs text-muted-foreground">+12% from last month</p>
+              <p className="text-xs text-muted-foreground">+12% từ tháng trước</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -146,12 +146,12 @@ export function TeacherDashboard() {
         >
           <Card className="transition-all hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Avg. Rating</CardTitle>
+              <CardTitle className="text-sm font-medium">Đánh giá trung bình</CardTitle>
               <TrendingUp className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">4.85</div>
-              <p className="text-xs text-muted-foreground">Across all courses</p>
+              <p className="text-xs text-muted-foreground">Trên tất cả khóa học</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -159,10 +159,10 @@ export function TeacherDashboard() {
 
       <Tabs defaultValue="courses" className="space-y-6">
         <TabsList className="bg-card">
-          <TabsTrigger value="courses">My Courses</TabsTrigger>
-          <TabsTrigger value="rooms">Exam Rooms</TabsTrigger>
-          <TabsTrigger value="students">Students</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="courses">Khóa học của tôi</TabsTrigger>
+          <TabsTrigger value="rooms">Phòng thi</TabsTrigger>
+          <TabsTrigger value="students">Học viên</TabsTrigger>
+          <TabsTrigger value="analytics">Phân tích</TabsTrigger>
         </TabsList>
 
         <TabsContent value="courses" className="space-y-4">
@@ -174,19 +174,19 @@ export function TeacherDashboard() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Exam Rooms</CardTitle>
-                  <CardDescription>Manage your exam rooms and monitor student participation</CardDescription>
+                  <CardTitle>Phòng thi</CardTitle>
+                  <CardDescription>Quản lý phòng thi và giám sát sự tham gia của học viên</CardDescription>
                 </div>
                 <Link href="/teacher/rooms">
                   <Button>
-                    View All Rooms
+                    Xem tất cả phòng
                   </Button>
                 </Link>
               </div>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground text-center py-8">
-                Create and manage real-time exam rooms where students can join and take quizzes together.
+                Tạo và quản lý phòng thi trực tuyến nơi học viên có thể tham gia và làm bài kiểm tra cùng nhau.
               </p>
             </CardContent>
           </Card>
@@ -195,8 +195,8 @@ export function TeacherDashboard() {
         <TabsContent value="students" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Recent Enrollments</CardTitle>
-              <CardDescription>Students who recently joined your courses</CardDescription>
+              <CardTitle>Đăng ký gần đây</CardTitle>
+              <CardDescription>Học viên vừa tham gia khóa học của bạn</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -233,8 +233,8 @@ export function TeacherDashboard() {
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
               <Card>
                 <CardHeader>
-                  <CardTitle>Student Growth</CardTitle>
-                  <CardDescription>Monthly enrollment trends</CardDescription>
+                  <CardTitle>Tăng trưởng học viên</CardTitle>
+                  <CardDescription>Xu hướng đăng ký hàng tháng</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -264,8 +264,8 @@ export function TeacherDashboard() {
             >
               <Card>
                 <CardHeader>
-                  <CardTitle>Revenue Growth</CardTitle>
-                  <CardDescription>Monthly revenue trends</CardDescription>
+                  <CardTitle>Tăng trưởng doanh thu</CardTitle>
+                  <CardDescription>Xu hướng doanh thu hàng tháng</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
