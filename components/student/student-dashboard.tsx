@@ -6,9 +6,17 @@ import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BookOpen, Clock, Award, TrendingUp, Play, CheckCircle2, Sparkles, Loader2, TestTube } from "lucide-react"
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { BookOpen, Clock, Award, TrendingUp, Play, CheckCircle2, Sparkles, Loader2, TestTube, Calendar, Target, FileText, Star } from "lucide-react"
 import { motion } from "framer-motion"
 import Link from "next/link"
+import { format } from "date-fns"
 import { studentApi, enrollmentApi } from "@/lib/api/course-api"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
@@ -30,6 +38,33 @@ interface EnrolledCourse {
   nextLesson: string;
   createdAt: string;
   enrolledAt: string;
+  completedAt?: string;
+  quizResults?: Array<{
+    lesson: string;
+    score: number;
+    attempts: number;
+    completedAt: string;
+  }>;
+  projectSubmissions?: Array<{
+    lesson: string;
+    submission: string;
+    submittedAt: string;
+    grade?: number;
+    feedback?: string;
+  }>;
+  detailedProjectSubmissions?: Array<{
+    lessonId: string;
+    lessonTitle: string;
+    code: string;
+    submittedAt: string;
+    score?: number;
+    feedback?: string;
+    status: string;
+  }>;
+  averageQuizScore?: number;
+  totalQuizzes?: number;
+  totalProjects?: number;
+  averageProjectScore?: number;
 }
 
 interface StudentStats {
@@ -82,6 +117,7 @@ export function StudentDashboard() {
   const { toast } = useToast()
   
   const [enrolledCourses, setEnrolledCourses] = useState<EnrolledCourse[]>([])
+  const [completedCourses, setCompletedCourses] = useState<EnrolledCourse[]>([])
   const [stats, setStats] = useState<StudentStats>({
     totalEnrolled: 0,
     averageProgress: 0,
@@ -89,10 +125,79 @@ export function StudentDashboard() {
     certificatesEarned: 0
   })
   const [loading, setLoading] = useState(true)
+  const [completedLoading, setCompletedLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [aiRecommendations, setAiRecommendations] = useState<AIRecommendation[]>([])
   const [aiLoading, setAiLoading] = useState(false)
   const [learningPath, setLearningPath] = useState<string>('')
+  const [selectedCompletedCourse, setSelectedCompletedCourse] = useState<any>(null)
+  const [showCourseDetails, setShowCourseDetails] = useState(false)
+
+  // Load completed courses
+  const loadCompletedCourses = async () => {
+    if (!user || user.role !== 'student') return
+
+    try {
+      setCompletedLoading(true)
+      const response = await enrollmentApi.getAll({ status: 'completed' })
+      
+      if (response.success && response.data) {
+        // Also fetch detailed submissions for each completed course
+        const transformedCourses = await Promise.all(
+          response.data.enrollments.map(async (enrollment: any) => {
+            let detailedSubmissions = []
+            
+            // Fetch detailed project submissions with feedback
+            try {
+              const submissionsResponse = await fetch('/api/student/submissions?courseId=' + enrollment.course._id, {
+                headers: {
+                  'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+              })
+              
+              if (submissionsResponse.ok) {
+                const submissionsData = await submissionsResponse.json()
+                if (submissionsData.success && submissionsData.data.length > 0) {
+                  detailedSubmissions = submissionsData.data[0].submissions || []
+                }
+              }
+            } catch (error) {
+              console.error('Error fetching detailed submissions:', error)
+            }
+            
+            const gradedProjects = detailedSubmissions.filter((p: any) => p.score !== undefined && p.score !== null)
+            
+            return {
+              id: enrollment.course._id,
+              title: enrollment.course.title,
+              instructor: enrollment.course.instructor,
+              thumbnail: enrollment.course.thumbnail,
+              progress: 100, // Completed courses are 100%
+              completedLessons: enrollment.progress.completedLessons.length,
+              totalLessons: enrollment.progress.totalLessons,
+              nextLesson: 'Đã hoàn thành',
+              completedAt: enrollment.completedAt,
+              quizResults: enrollment.quizResults || [],
+              projectSubmissions: enrollment.projectSubmissions || [],
+              detailedProjectSubmissions: detailedSubmissions,
+              averageQuizScore: enrollment.quizResults.length > 0 ? 
+                Math.round(enrollment.quizResults.reduce((acc: number, quiz: any) => acc + quiz.score, 0) / enrollment.quizResults.length) : null,
+              totalQuizzes: enrollment.quizResults.length,
+              totalProjects: detailedSubmissions.length, // Use detailedSubmissions for consistency
+              averageProjectScore: gradedProjects.length > 0 ?
+                Math.round(gradedProjects.reduce((acc: number, proj: any) => acc + proj.score, 0) / gradedProjects.length) : null
+            }
+          })
+        )
+        
+        setCompletedCourses(transformedCourses)
+      }
+    } catch (err) {
+      console.error('Failed to fetch completed courses:', err)
+    } finally {
+      setCompletedLoading(false)
+    }
+  }
 
   // Load enrolled courses
   useEffect(() => {
@@ -171,6 +276,16 @@ export function StudentDashboard() {
 
     fetchEnrolledCourses()
   }, [user, toast])
+
+  // Load completed courses when tab is accessed
+  useEffect(() => {
+    loadCompletedCourses()
+  }, [user])
+
+  // Load completed courses when tab is accessed
+  useEffect(() => {
+    loadCompletedCourses()
+  }, [user])
 
   // Fetch AI recommendations
   useEffect(() => {
@@ -357,6 +472,7 @@ export function StudentDashboard() {
       <Tabs defaultValue="courses" className="space-y-6">
         <TabsList className="bg-card">
           <TabsTrigger value="courses">Khóa Học Của Tôi</TabsTrigger>
+          <TabsTrigger value="completed">Khóa Học Đã Học</TabsTrigger>
           <TabsTrigger value="recommendations">
             <Sparkles className="h-4 w-4 mr-2" />
             Gợi Ý Từ AI
@@ -449,6 +565,141 @@ export function StudentDashboard() {
               </Card>
             </motion.div>
           ))
+          )}
+        </TabsContent>
+
+        <TabsContent value="completed" className="space-y-4">
+          {completedLoading ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-6 w-6 animate-spin" />
+                <span>Đang tải khóa học đã hoàn thành...</span>
+              </div>
+            </div>
+          ) : completedCourses.length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-12">
+                <Award className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+                <h3 className="text-lg font-semibold mb-2">Chưa Hoàn Thành Khóa Học Nào</h3>
+                <p className="text-muted-foreground mb-4">
+                  Hoàn thành khóa học đầu tiên để nhận chứng chỉ và điểm số!
+                </p>
+                <Button asChild>
+                  <Link href="/courses">Duyệt Khóa Học</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            completedCourses.map((course: EnrolledCourse, index: number) => (
+              <motion.div
+                key={course.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+              >
+                <Card className="overflow-hidden transition-all hover:shadow-lg border-l-4 border-l-green-500">
+                  <div className="md:flex">
+                    <div className="md:w-48 h-48 md:h-auto relative overflow-hidden">
+                      <img
+                        src={course.thumbnail || "/placeholder.svg"}
+                        alt={course.title}
+                        className="w-full h-full object-cover transition-transform hover:scale-105 duration-300"
+                      />
+                      <div className="absolute top-2 right-2">
+                        <Badge className="bg-green-100 text-green-800">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Hoàn thành
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="flex-1 p-6">
+                      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                        <div className="flex-1">
+                          <h3 className="text-xl font-bold mb-2">{course.title}</h3>
+                          <p className="text-sm text-muted-foreground mb-4">by {course.instructor}</p>
+                          
+                          {/* Completion Info */}
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-2 text-sm">
+                              <Calendar className="h-4 w-4 text-green-600" />
+                              <span>Hoàn thành: {course.completedAt ? new Date(course.completedAt).toLocaleDateString('vi-VN') : 'Không xác định'}</span>
+                            </div>
+                            
+                            {/* Scores Summary */}
+                            <div className="grid grid-cols-2 gap-4 mt-4">
+                              {course.averageQuizScore !== null && (
+                                <div className="bg-blue-50 p-3 rounded-lg">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <Target className="h-4 w-4 text-blue-600" />
+                                    <span className="text-sm font-medium text-blue-800">Điểm Quiz TB</span>
+                                  </div>
+                                  <div className="text-2xl font-bold text-blue-900">{course.averageQuizScore}%</div>
+                                  <div className="text-xs text-blue-600">{course.totalQuizzes} quiz</div>
+                                </div>
+                              )}
+                              
+                              {/* Project Score Section */}
+                              {course.totalProjects > 0 && (
+                                <div className={`p-3 rounded-lg ${
+                                  course.averageProjectScore !== null 
+                                    ? 'bg-purple-50' 
+                                    : 'bg-yellow-50'
+                                }`}>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <FileText className={`h-4 w-4 ${
+                                      course.averageProjectScore !== null 
+                                        ? 'text-purple-600' 
+                                        : 'text-yellow-600'
+                                    }`} />
+                                    <span className={`text-sm font-medium ${
+                                      course.averageProjectScore !== null 
+                                        ? 'text-purple-800' 
+                                        : 'text-yellow-800'
+                                    }`}>
+                                      {course.averageProjectScore !== null 
+                                        ? 'Điểm Project TB' 
+                                        : 'Project Status'
+                                      }
+                                    </span>
+                                  </div>
+                                  {course.averageProjectScore !== null ? (
+                                    <>
+                                      <div className="text-2xl font-bold text-purple-900">{course.averageProjectScore}%</div>
+                                      <div className="text-xs text-purple-600">{course.totalProjects} project</div>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div className="text-lg font-bold text-yellow-900">Giáo viên đang chấm...</div>
+                                      <div className="text-xs text-yellow-600">{course.totalProjects} project chờ chấm</div>
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex flex-col gap-2">
+                          <Button 
+                            onClick={() => {
+                              setSelectedCompletedCourse(course)
+                              setShowCourseDetails(true)
+                            }}
+                            className="bg-green-600 text-white hover:bg-green-700"
+                          >
+                            <Star className="h-4 w-4 mr-2" />
+                            Xem Chi Tiết Điểm
+                          </Button>
+                          <Button variant="outline" asChild>
+                            <Link href={`/courses/${course.id}`}>Xem Khóa Học</Link>
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+            ))
           )}
         </TabsContent>
 
@@ -627,6 +878,197 @@ export function StudentDashboard() {
         </TabsContent>
 
       </Tabs>
+
+      {/* Course Details Dialog */}
+      <Dialog open={showCourseDetails} onOpenChange={setShowCourseDetails}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Star className="h-5 w-5 text-yellow-500" />
+              Chi Tiết Điểm Số - {selectedCompletedCourse?.title}
+            </DialogTitle>
+            <DialogDescription>
+              Xem chi tiết điểm số từ giáo viên cho khóa học đã hoàn thành
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedCompletedCourse && (
+            <div className="space-y-6">
+              {/* Course Overview */}
+              <div className="bg-gradient-to-r from-green-50 to-blue-50 p-6 rounded-lg border">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="font-semibold text-lg mb-2">{selectedCompletedCourse.title}</h3>
+                    <p className="text-muted-foreground">Giảng viên: {selectedCompletedCourse.instructor}</p>
+                    <p className="text-sm text-green-600 font-medium">
+                      ✅ Hoàn thành: {selectedCompletedCourse.completedAt ? 
+                        new Date(selectedCompletedCourse.completedAt).toLocaleDateString('vi-VN') : 
+                        'Không xác định'}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">100%</div>
+                      <div className="text-sm text-muted-foreground">Hoàn thành khóa học</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quiz Scores */}
+              {selectedCompletedCourse.quizResults && selectedCompletedCourse.quizResults.length > 0 && (
+                <div>
+                  <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Target className="h-5 w-5 text-blue-600" />
+                    Điểm Quiz ({selectedCompletedCourse.quizResults.length} quiz)
+                  </h4>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {selectedCompletedCourse.quizResults.map((quiz: any, index: number) => (
+                      <Card key={index} className="border-l-4 border-l-blue-500">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-medium text-sm">Quiz #{index + 1}</span>
+                            <Badge className={`${quiz.score >= 70 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                              {quiz.score}%
+                            </Badge>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Lần làm: {quiz.attempts} | {new Date(quiz.completedAt).toLocaleDateString('vi-VN')}
+                          </div>
+                          <Progress value={quiz.score} className="mt-2 h-2" />
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                  {selectedCompletedCourse.averageQuizScore && (
+                    <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <Target className="h-4 w-4 text-blue-600" />
+                        <span className="font-medium">Điểm Trung Bình Quiz: </span>
+                        <span className="text-lg font-bold text-blue-700">{selectedCompletedCourse.averageQuizScore}%</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Project Scores */}
+              {selectedCompletedCourse?.detailedProjectSubmissions && selectedCompletedCourse.detailedProjectSubmissions.length > 0 && (
+                <div>
+                  <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-purple-600" />
+                    Điểm Project ({selectedCompletedCourse.detailedProjectSubmissions.length} project)
+                  </h4>
+                  <div className="space-y-4">
+                    {selectedCompletedCourse.detailedProjectSubmissions.map((project: any, index: number) => (
+                      <Card key={index} className="border-l-4 border-l-purple-500">
+                        <CardContent className="p-4">
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium">{project.lessonTitle}</span>
+                              {project.score !== undefined ? (
+                                <div className="flex items-center gap-2">
+                                  <Award className="h-4 w-4 text-purple-600" />
+                                  <Badge className={`${
+                                    project.score >= 70 
+                                      ? 'bg-green-100 text-green-800' 
+                                      : 'bg-red-100 text-red-800'
+                                  }`}>
+                                    {project.score}% - Đã chấm
+                                  </Badge>
+                                </div>
+                              ) : (
+                                <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  Giáo viên đang chấm...
+                                </Badge>
+                              )}
+                            </div>
+                            
+                            <div className="text-xs text-muted-foreground">
+                              Nộp bài: {format(new Date(project.submittedAt), 'dd/MM/yyyy HH:mm')}
+                            </div>
+                            
+                            {project.score !== undefined && (
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-sm">Điểm số</span>
+                                  <span className="font-bold">{project.score}%</span>
+                                </div>
+                                <Progress value={project.score} className="h-2" />
+                              </div>
+                            )}
+                            
+                            {project.feedback && (
+                              <div className="bg-amber-50 p-3 rounded border border-amber-200">
+                                <div className="text-sm font-medium text-amber-800 mb-1">Nhận xét từ giáo viên:</div>
+                                <div className="text-sm text-amber-700 whitespace-pre-wrap">{project.feedback}</div>
+                              </div>
+                            )}
+
+                            {!project.feedback && project.score !== undefined && (
+                              <div className="bg-blue-50 p-3 rounded border border-blue-200">
+                                <div className="text-sm text-blue-700">Đã chấm điểm nhưng chưa có nhận xét</div>
+                              </div>
+                            )}
+
+                            {project.score === undefined && (
+                              <div className="bg-yellow-50 p-3 rounded border border-yellow-200">
+                                <div className="flex items-center gap-2 text-yellow-700">
+                                  <Clock className="h-4 w-4" />
+                                  <span className="text-sm font-medium">Giáo viên đang xem xét và chấm điểm cho bài nộp của bạn</span>
+                                </div>
+                                <p className="text-xs text-yellow-600 mt-1 ml-6">
+                                  Vui lòng chờ ít ngày nữa để nhận kết quả chấm điểm và nhận xét
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                  {selectedCompletedCourse.averageProjectScore && (
+                    <div className="mt-4 p-4 bg-purple-50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-purple-600" />
+                        <span className="font-medium">Điểm Trung Bình Project: </span>
+                        <span className="text-lg font-bold text-purple-700">{selectedCompletedCourse.averageProjectScore}%</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Overall Performance */}
+              <div className="bg-gradient-to-r from-yellow-50 to-orange-50 p-6 rounded-lg border border-yellow-200">
+                <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Award className="h-5 w-5 text-yellow-600" />
+                  Tổng Kết Thành Tích
+                </h4>
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">{selectedCompletedCourse.completedLessons}</div>
+                    <div className="text-sm text-muted-foreground">Bài học hoàn thành</div>
+                  </div>
+                  {selectedCompletedCourse.averageQuizScore && (
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-600">{selectedCompletedCourse.averageQuizScore}%</div>
+                      <div className="text-sm text-muted-foreground">Điểm quiz trung bình</div>
+                    </div>
+                  )}
+                  {selectedCompletedCourse.averageProjectScore && (
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-purple-600">{selectedCompletedCourse.averageProjectScore}%</div>
+                      <div className="text-sm text-muted-foreground">Điểm project trung bình</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
