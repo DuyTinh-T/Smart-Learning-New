@@ -8,6 +8,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useSocket } from '@/lib/socket-context';
@@ -18,7 +28,9 @@ import {
   Play,
   Loader2,
   UserCircle,
-  CheckCircle2
+  CheckCircle2,
+  UserX,
+  Ban
 } from 'lucide-react';
 
 interface Participant {
@@ -49,6 +61,12 @@ interface RoomMonitorDialogProps {
   onStartExam: () => void;
 }
 
+interface BannedStudent {
+  userId: string;
+  name: string;
+  email?: string;
+}
+
 export function RoomMonitorDialog({
   open,
   onOpenChange,
@@ -60,6 +78,9 @@ export function RoomMonitorDialog({
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [hasJoined, setHasJoined] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
+  const [studentToBan, setStudentToBan] = useState<{ id: string; name: string } | null>(null);
+  const [bannedStudents, setBannedStudents] = useState<BannedStudent[]>([]);
+  const [showBannedList, setShowBannedList] = useState(false);
   const { socket, isConnected } = useSocket();
   const { toast } = useToast();
 
@@ -131,6 +152,40 @@ export function RoomMonitorDialog({
       }
     };
 
+    const handleStudentKicked = (data: any) => {
+      console.log('🚫 Student kicked:', data);
+      toast({
+        title: 'Success',
+        description: data.message,
+      });
+    };
+
+    const handleStudentBanned = (data: any) => {
+      console.log('⛔ Student banned:', data);
+      toast({
+        title: 'Success',
+        description: data.message,
+        variant: 'destructive',
+      });
+      // Refresh banned list
+      fetchBannedStudents();
+    };
+
+    const handleStudentUnbanned = (data: any) => {
+      console.log('✅ Student unbanned:', data);
+      toast({
+        title: 'Success',
+        description: data.message,
+      });
+      // Refresh banned list
+      fetchBannedStudents();
+    };
+
+    const handleBannedStudentsList = (data: any) => {
+      console.log('📋 Banned students list:', data);
+      setBannedStudents(data.bannedStudents || []);
+    };
+
     const handleError = (data: any) => {
       console.error('❌ Monitor error:', data);
       toast({
@@ -145,6 +200,10 @@ export function RoomMonitorDialog({
     socket.on('room-update', handleRoomUpdate);
     socket.on('exam-started', handleExamStarted);
     socket.on('student-submitted', handleStudentSubmitted);
+    socket.on('student-kicked', handleStudentKicked);
+    socket.on('student-banned', handleStudentBanned);
+    socket.on('student-unbanned', handleStudentUnbanned);
+    socket.on('banned-students-list', handleBannedStudentsList);
     socket.on('error', handleError);
 
     return () => {
@@ -152,6 +211,10 @@ export function RoomMonitorDialog({
       socket.off('room-update', handleRoomUpdate);
       socket.off('exam-started', handleExamStarted);
       socket.off('student-submitted', handleStudentSubmitted);
+      socket.off('student-kicked', handleStudentKicked);
+      socket.off('student-banned', handleStudentBanned);
+      socket.off('student-unbanned', handleStudentUnbanned);
+      socket.off('banned-students-list', handleBannedStudentsList);
       socket.off('error', handleError);
     };
   }, [socket, room.roomCode, toast]);
@@ -170,9 +233,64 @@ export function RoomMonitorDialog({
   const students = participants.filter(p => p.role === 'student');
   const teachers = participants.filter(p => p.role === 'teacher');
 
+  const handleKickStudent = (studentId: string) => {
+    if (!socket) return;
+    
+    console.log('🚫 Kicking student:', studentId);
+    socket.emit('kick-student', {
+      roomCode: room.roomCode,
+      teacherId,
+      studentId
+    });
+  };
+
+  const handleBanStudent = (studentId: string, studentName: string) => {
+    setStudentToBan({ id: studentId, name: studentName });
+  };
+
+  const confirmBanStudent = () => {
+    if (!socket || !studentToBan) return;
+    
+    console.log('⛔ Banning student:', studentToBan.id);
+    socket.emit('ban-student', {
+      roomCode: room.roomCode,
+      teacherId,
+      studentId: studentToBan.id
+    });
+    
+    setStudentToBan(null);
+  };
+
+  const fetchBannedStudents = () => {
+    if (!socket) return;
+    
+    socket.emit('get-banned-students', {
+      roomCode: room.roomCode,
+      teacherId
+    });
+  };
+
+  const handleUnbanStudent = (studentId: string) => {
+    if (!socket) return;
+    
+    console.log('✅ Unbanning student:', studentId);
+    socket.emit('unban-student', {
+      roomCode: room.roomCode,
+      teacherId,
+      studentId
+    });
+  };
+
+  // Fetch banned students when dialog opens and user joins
+  useEffect(() => {
+    if (hasJoined) {
+      fetchBannedStudents();
+    }
+  }, [hasJoined]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-5xl max-w-5xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
@@ -253,18 +371,40 @@ export function RoomMonitorDialog({
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   {students.map((student, index) => (
                     <div
                       key={index}
-                      className="flex items-center gap-2 p-3 border rounded-lg"
+                      className="flex items-center gap-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
                     >
-                      <UserCircle className="h-5 w-5 text-blue-500" />
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{student.name}</p>
+                      <UserCircle className="h-5 w-5 text-blue-500 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{student.name}</p>
                         <p className="text-xs text-muted-foreground">
                           Joined {new Date(student.joinedAt).toLocaleTimeString()}
                         </p>
+                      </div>
+                      <div className="flex gap-1 flex-shrink-0">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleKickStudent(student.userId)}
+                          className="h-8 px-2 gap-1"
+                          title="Kick student from room"
+                        >
+                          <UserX className="h-3.5 w-3.5" />
+                          <span className="sr-only sm:not-sr-only sm:inline">Kick</span>
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleBanStudent(student.userId, student.name)}
+                          className="h-8 px-2 gap-1"
+                          title="Ban student from room permanently"
+                        >
+                          <Ban className="h-3.5 w-3.5" />
+                          <span className="sr-only sm:not-sr-only sm:inline">Ban</span>
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -289,6 +429,60 @@ export function RoomMonitorDialog({
                 </div>
               </div>
             )}
+
+            {/* Banned Students */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Ban className="h-4 w-4 text-red-500" />
+                  Banned Students ({bannedStudents.length})
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowBannedList(!showBannedList)}
+                >
+                  {showBannedList ? 'Hide' : 'Show'}
+                </Button>
+              </div>
+              
+              {showBannedList && (
+                bannedStudents.length === 0 ? (
+                  <div className="text-center p-4 border-2 border-dashed rounded-lg">
+                    <p className="text-sm text-muted-foreground">
+                      No banned students
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {bannedStudents.map((student, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-2 p-3 border border-red-200 bg-red-50 dark:bg-red-950/20 rounded-lg"
+                      >
+                        <Ban className="h-4 w-4 text-red-500 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{student.name}</p>
+                          {student.email && (
+                            <p className="text-xs text-muted-foreground truncate">{student.email}</p>
+                          )}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleUnbanStudent(student.userId)}
+                          className="h-8 px-2 gap-1"
+                          title="Unban student"
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          <span className="sr-only sm:not-sr-only sm:inline">Unban</span>
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )
+              )}
+            </div>
           </div>
 
           {/* Instructions */}
@@ -300,6 +494,31 @@ export function RoomMonitorDialog({
           </div>
         </div>
       </DialogContent>
+
+      {/* Ban Confirmation Dialog */}
+      <AlertDialog open={!!studentToBan} onOpenChange={() => setStudentToBan(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ban Student?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to ban <strong>{studentToBan?.name}</strong>?
+              <br />
+              <br />
+              This student will be immediately removed from the room and will not be able to rejoin this exam.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmBanStudent}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Ban Student
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
