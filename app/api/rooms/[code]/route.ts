@@ -153,7 +153,20 @@ export async function DELETE(
       return NextResponse.json({ error: 'Room not found' }, { status: 404 });
     }
 
-    if ((room.teacherId as any).toString() !== (user as any)._id.toString()) {
+    // Extract teacherId (handle both ObjectId and populated object)
+    const roomTeacherId = typeof room.teacherId === 'object' && room.teacherId !== null
+      ? (room.teacherId as any)._id?.toString() || (room.teacherId as any).toString()
+      : room.teacherId.toString();
+    
+    const userId = (user as any)._id.toString();
+
+    console.log('🗑️ Delete room check:', {
+      roomTeacherId,
+      userId,
+      match: roomTeacherId === userId
+    });
+
+    if (roomTeacherId !== userId) {
       return NextResponse.json({ error: 'Only the room creator can delete it' }, { status: 403 });
     }
 
@@ -162,6 +175,8 @@ export async function DELETE(
     }
 
     await Room.findByIdAndDelete(room._id);
+
+    console.log(`✅ Room ${code} deleted by ${userId}`);
 
     return NextResponse.json({ 
       message: 'Room deleted successfully' 
