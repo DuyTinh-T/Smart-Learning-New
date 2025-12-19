@@ -107,15 +107,23 @@ export function TeacherRoomManagement() {
   };
 
   const handleRoomDeleted = async (roomId: string) => {
-    if (!confirm('Are you sure you want to delete this room?')) {
+    const room = rooms.find(r => r._id === roomId);
+    if (!room) {
+      toast({
+        title: 'Error',
+        description: 'Room not found',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete room "${room.title}" (${room.roomCode})?`)) {
       return;
     }
 
     try {
       const headers: Record<string,string> = {};
       if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
-      const room = rooms.find(r => r._id === roomId);
-      if (!room) return;
 
       const response = await fetch(`/api/rooms/${room.roomCode}`, {
         method: 'DELETE',
@@ -131,10 +139,11 @@ export function TeacherRoomManagement() {
       
       toast({
         title: 'Room Deleted',
-        description: 'Room has been deleted successfully',
+        description: `"${room.title}" has been deleted successfully`,
       });
 
     } catch (error: any) {
+      console.error('Error deleting room:', error);
       toast({
         title: 'Error',
         description: error.message || 'Failed to delete room',

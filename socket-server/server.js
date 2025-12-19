@@ -384,6 +384,43 @@ SubmissionSchema.statics.getRoomStatistics = function(roomId) {
 
 const Submission = mongoose.models.Submission || mongoose.model('Submission', SubmissionSchema);
 
+// Check and end expired exams on server startup
+async function checkExpiredExams() {
+  try {
+    const runningRooms = await Room.find({ status: 'running' });
+    const now = new Date();
+    
+    for (const room of runningRooms) {
+      if (room.endTime && new Date(room.endTime) <= now) {
+        console.log(`⏰ Auto-ending expired exam in room ${room.roomCode}`);
+        
+        // Update room status
+        room.status = 'ended';
+        await room.save();
+        
+        // Auto-submit in-progress submissions
+        const inProgressSubmissions = await Submission.find({
+          roomId: room._id,
+          status: 'in-progress',
+        });
+        
+        for (const submission of inProgressSubmissions) {
+          submission.status = 'auto-submitted';
+          submission.submittedAt = new Date();
+          await submission.save();
+        }
+        
+        console.log(`✅ Expired exam in room ${room.roomCode} has been ended`);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error checking expired exams:', error);
+  }
+}
+
+// Run check after models are loaded
+checkExpiredExams();
+
 // Redis helper functions
 async function getRoomState(roomId) {
   try {
@@ -458,6 +495,7 @@ async function handleExamEnd(roomId, roomCode, io) {
       const stats = await Submission.getRoomStatistics(roomId);
 
       io.to(roomCode).emit('exam-ended', {
+        roomCode: roomCode,
         message: 'Time is up! Exam has ended.',
         statistics: stats[0] || {},
       });
