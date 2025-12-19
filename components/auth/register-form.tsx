@@ -71,10 +71,10 @@ export function RegisterForm() {
         </CardHeader>
         <CardContent>
           <Tabs value={role} onValueChange={(value) => setRole(value as "student" | "teacher" | "admin")}>
-            <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="student">Học viên</TabsTrigger>
               <TabsTrigger value="teacher">Giảng viên</TabsTrigger>
-              <TabsTrigger value="admin">Quản trị</TabsTrigger>
+              {/* <TabsTrigger value="admin">Quản trị</TabsTrigger> */}
             </TabsList>
             <TabsContent value={role}>
               <form onSubmit={handleSubmit} className="space-y-4">
