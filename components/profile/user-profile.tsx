@@ -10,10 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
-import { User, Bell, Target, Award, BookOpen, Loader2 } from "lucide-react"
+import { User, Bell, Target, Award, BookOpen, Loader2, Camera, Upload } from "lucide-react"
 import { motion } from "framer-motion"
 import { useAuth } from "@/lib/auth-context"
 import { toast } from "sonner"
+import { uploadFile } from "@/lib/supabase"
 
 // Hard-coded data for features not yet implemented
 const staticData = {
@@ -37,6 +38,7 @@ const staticData = {
 export function UserProfile() {
   const { user, isLoading, updateProfile } = useAuth()
   const [isUpdating, setIsUpdating] = useState(false)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -141,6 +143,45 @@ export function UserProfile() {
       .toUpperCase()
   }
 
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+    if (!validTypes.includes(file.type)) {
+      toast.error('Vui lòng chọn file ảnh hợp lệ (JPG, PNG, GIF, WEBP)')
+      return
+    }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024 // 5MB
+    if (file.size > maxSize) {
+      toast.error('Kích thước ảnh không được vượt quá 5MB')
+      return
+    }
+
+    try {
+      setIsUploadingAvatar(true)
+      toast.loading('Đang tải ảnh lên...', { id: 'avatar-upload' })
+
+      // Upload to Supabase storage in 'course-thumbnails' bucket
+      const avatarUrl = await uploadFile(file, 'course-thumbnails', 'avatars')
+
+      // Update profile with new avatar URL
+      await updateProfile({ avatar: avatarUrl })
+
+      toast.success('Cập nhật ảnh đại diện thành công!', { id: 'avatar-upload' })
+    } catch (error) {
+      console.error('Failed to upload avatar:', error)
+      toast.error('Không thể tải ảnh lên. Vui lòng thử lại.', { id: 'avatar-upload' })
+    } finally {
+      setIsUploadingAvatar(false)
+      // Reset input
+      event.target.value = ''
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -182,12 +223,33 @@ export function UserProfile() {
             <Card className="sticky top-20">
               <CardContent className="pt-6">
                 <div className="flex flex-col items-center text-center">
-                  <Avatar className="h-24 w-24 mb-4">
-                    <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-                    <AvatarFallback className="text-2xl bg-primary/10 text-primary">
-                      {getUserInitials()}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="relative mb-4">
+                    <Avatar className="h-24 w-24">
+                      <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
+                      <AvatarFallback className="text-2xl bg-primary/10 text-primary">
+                        {getUserInitials()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <label 
+                      htmlFor="avatar-upload" 
+                      className="absolute bottom-0 right-0 bg-primary text-primary-foreground rounded-full p-2 cursor-pointer hover:bg-primary/90 transition-colors shadow-lg"
+                      title="Thay đổi ảnh đại diện"
+                    >
+                      {isUploadingAvatar ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Camera className="h-4 w-4" />
+                      )}
+                    </label>
+                    <input
+                      id="avatar-upload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarUpload}
+                      disabled={isUploadingAvatar}
+                      className="hidden"
+                    />
+                  </div>
                   <h2 className="text-2xl font-bold mb-1">{user.name}</h2>
                   <p className="text-sm text-muted-foreground mb-4">{user.email}</p>
                   <Badge variant="outline" className="mb-6">
@@ -230,21 +292,6 @@ export function UserProfile() {
             className="lg:col-span-2"
           >
             <Tabs defaultValue="personal" className="space-y-6">
-              <TabsList className="bg-card">
-                <TabsTrigger value="personal">
-                  <User className="h-4 w-4 mr-2" />
-                  Thông tin cá nhân
-                </TabsTrigger>
-                <TabsTrigger value="goals">
-                  <Target className="h-4 w-4 mr-2" />
-                  Mục tiêu học tập
-                </TabsTrigger>
-                <TabsTrigger value="notifications">
-                  <Bell className="h-4 w-4 mr-2" />
-                  Thông báo
-                </TabsTrigger>
-              </TabsList>
-
               <TabsContent value="personal" className="space-y-6">
                 <Card>
                   <CardHeader>
@@ -278,9 +325,6 @@ export function UserProfile() {
                           <Badge variant="outline" className="capitalize">
                             {user.role}
                           </Badge>
-                          <span className="text-sm text-muted-foreground">
-                            Liên hệ quản trị viên để thay đổi vai trò
-                          </span>
                         </div>
                       </div>
 
@@ -347,101 +391,6 @@ export function UserProfile() {
                         'Lưu thay đổi hồ sơ'
                       )}
                     </Button>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Achievements</CardTitle>
-                    <CardDescription>Your learning milestones</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      {staticData.achievements.map((achievement: any, index: number) => (
-                        <motion.div
-                          key={achievement.id}
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ duration: 0.3, delay: index * 0.1 }}
-                          className="flex items-center gap-3 p-4 rounded-lg border bg-card hover:shadow-md transition-shadow"
-                        >
-                          <div className="text-3xl">{achievement.icon}</div>
-                          <div>
-                            <p className="font-semibold">{achievement.title}</p>
-                            <p className="text-xs text-muted-foreground">{achievement.date}</p>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="goals" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Learning Goals</CardTitle>
-                    <CardDescription>Set and track your learning objectives</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {staticData.learningGoals.map((goal: string, index: number) => (
-                      <motion.div
-                        key={index}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.3, delay: index * 0.1 }}
-                        className="flex items-center gap-3 p-4 rounded-lg border"
-                      >
-                        <Target className="h-5 w-5 text-primary" />
-                        <span className="flex-1">{goal}</span>
-                        <Button variant="ghost" size="sm">
-                          Edit
-                        </Button>
-                      </motion.div>
-                    ))}
-                    <Button variant="outline" className="w-full bg-transparent">
-                      Add New Goal
-                    </Button>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="notifications" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Notification Preferences</CardTitle>
-                    <CardDescription>Manage how you receive updates</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label htmlFor="email-notifications">Email Notifications</Label>
-                        <p className="text-sm text-muted-foreground">Receive course updates via email</p>
-                      </div>
-                      <Switch id="email-notifications" defaultChecked />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label htmlFor="course-reminders">Course Reminders</Label>
-                        <p className="text-sm text-muted-foreground">Get reminded about incomplete lessons</p>
-                      </div>
-                      <Switch id="course-reminders" defaultChecked />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label htmlFor="new-courses">New Course Alerts</Label>
-                        <p className="text-sm text-muted-foreground">Notify me about new courses</p>
-                      </div>
-                      <Switch id="new-courses" />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label htmlFor="achievements">Achievement Notifications</Label>
-                        <p className="text-sm text-muted-foreground">Celebrate your learning milestones</p>
-                      </div>
-                      <Switch id="achievements" defaultChecked />
-                    </div>
-                    <Button className="bg-primary text-primary-foreground hover:bg-primary/90">Save Preferences</Button>
                   </CardContent>
                 </Card>
               </TabsContent>
