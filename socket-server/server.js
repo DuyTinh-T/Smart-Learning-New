@@ -254,8 +254,19 @@ const redis = new Redis(redisUrl, {
   keepAlive: 30000,
 });
 
-redis.on('connect', () => {
+redis.on('connect', async () => {
   console.log(`✅ Connected to Redis${isUpstash ? ' (Upstash)' : ' (Local)'}`);
+  
+  // Clear all room participants cache on server restart to prevent duplicate participants
+  try {
+    const keys = await redis.keys('room:*:participants');
+    if (keys.length > 0) {
+      await redis.del(...keys);
+      console.log(`🧹 Cleared ${keys.length} room participant cache(s) on server restart`);
+    }
+  } catch (error) {
+    console.error('❌ Error clearing Redis cache on startup:', error);
+  }
 });
 
 redis.on('error', (err) => {
@@ -281,6 +292,7 @@ const RoomSchema = new mongoose.Schema({
   endTime: Date,
   duration: { type: Number, required: true },
   maxStudents: Number,
+  bannedStudents: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   settings: {
     allowLateJoin: { type: Boolean, default: false },
     shuffleQuestions: { type: Boolean, default: false },
@@ -295,6 +307,14 @@ RoomSchema.statics.findByCode = function(code) {
 };
 
 const Room = mongoose.models.Room || mongoose.model('Room', RoomSchema);
+
+// User Schema (minimal, for querying banned students)
+const UserSchema = new mongoose.Schema({
+  name: String,
+  email: String,
+}, { timestamps: true });
+
+const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
 const SubmissionSchema = new mongoose.Schema({
   roomId: { type: mongoose.Schema.Types.ObjectId, ref: 'Room', required: true },
@@ -363,6 +383,43 @@ SubmissionSchema.statics.getRoomStatistics = function(roomId) {
 };
 
 const Submission = mongoose.models.Submission || mongoose.model('Submission', SubmissionSchema);
+
+// Check and end expired exams on server startup
+async function checkExpiredExams() {
+  try {
+    const runningRooms = await Room.find({ status: 'running' });
+    const now = new Date();
+    
+    for (const room of runningRooms) {
+      if (room.endTime && new Date(room.endTime) <= now) {
+        console.log(`⏰ Auto-ending expired exam in room ${room.roomCode}`);
+        
+        // Update room status
+        room.status = 'ended';
+        await room.save();
+        
+        // Auto-submit in-progress submissions
+        const inProgressSubmissions = await Submission.find({
+          roomId: room._id,
+          status: 'in-progress',
+        });
+        
+        for (const submission of inProgressSubmissions) {
+          submission.status = 'auto-submitted';
+          submission.submittedAt = new Date();
+          await submission.save();
+        }
+        
+        console.log(`✅ Expired exam in room ${room.roomCode} has been ended`);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error checking expired exams:', error);
+  }
+}
+
+// Run check after models are loaded
+checkExpiredExams();
 
 // Redis helper functions
 async function getRoomState(roomId) {
@@ -438,6 +495,7 @@ async function handleExamEnd(roomId, roomCode, io) {
       const stats = await Submission.getRoomStatistics(roomId);
 
       io.to(roomCode).emit('exam-ended', {
+        roomCode: roomCode,
         message: 'Time is up! Exam has ended.',
         statistics: stats[0] || {},
       });
@@ -473,6 +531,31 @@ io.on('connection', (socket) => {
         console.error('❌ Room has already ended:', roomCode);
         socket.emit('error', { message: 'This room has ended' });
         return;
+      }
+
+      // Check if student is banned
+      if (role === 'student') {
+        console.log('🔍 Checking if student is banned. BannedStudents array:', room.bannedStudents);
+        console.log('🔍 Student userId:', userId, 'type:', typeof userId);
+        
+        if (room.bannedStudents && room.bannedStudents.length > 0) {
+          const isBanned = room.bannedStudents.some(bannedId => {
+            const bannedIdStr = bannedId.toString();
+            const userIdStr = userId.toString();
+            console.log('🔍 Checking ban:', { bannedIdStr, userIdStr, match: bannedIdStr === userIdStr });
+            return bannedIdStr === userIdStr;
+          });
+          
+          if (isBanned) {
+            console.error('❌ Student is banned from this room:', userId);
+            socket.emit('error', { message: 'You have been banned from this room' });
+            return;
+          } else {
+            console.log('✅ Student is not banned, can join');
+          }
+        } else {
+          console.log('✅ No banned students in this room');
+        }
       }
 
       // teacherId is ObjectId, not populated
@@ -664,6 +747,247 @@ io.on('connection', (socket) => {
     } catch (error) {
       console.error('Error getting statistics:', error);
       socket.emit('error', { message: 'Failed to get statistics' });
+    }
+  });
+
+  // Kick student from room
+  socket.on('kick-student', async (data) => {
+    try {
+      const { roomCode, teacherId, studentId } = data;
+      const room = await Room.findByCode(roomCode);
+
+      if (!room) {
+        socket.emit('error', { message: 'Room not found' });
+        return;
+      }
+
+      // Verify teacher
+      if (room.teacherId.toString() !== teacherId) {
+        socket.emit('error', { message: 'Only the teacher can kick students' });
+        return;
+      }
+
+      // Find student socket by userId
+      const roomSockets = await io.in(roomCode).fetchSockets();
+      const studentSocket = roomSockets.find(s => s.userId === studentId && s.role === 'student');
+
+      if (studentSocket) {
+        // Emit kick event to the student
+        studentSocket.emit('kicked-from-room', {
+          message: 'You have been removed from the room by the teacher',
+          roomCode
+        });
+
+        // Remove from room
+        studentSocket.leave(roomCode);
+        
+        // Remove from Redis
+        await removeRoomParticipant(room._id.toString(), studentSocket.id);
+
+        // Disconnect the student socket
+        studentSocket.disconnect(true);
+      }
+
+      // Update room participants
+      const roomState = await getRoomState(room._id.toString());
+      const participantsList = Object.values(roomState?.participants || {});
+
+      io.to(roomCode).emit('room-update', {
+        room: room.toObject(),
+        participants: participantsList,
+        totalStudents: participantsList.filter(p => p.role === 'student').length,
+        totalParticipants: participantsList.length,
+      });
+
+      socket.emit('student-kicked', {
+        message: 'Student removed from room',
+        studentId
+      });
+
+      console.log(`🚫 Student ${studentId} kicked from room ${roomCode}`);
+
+    } catch (error) {
+      console.error('Error kicking student:', error);
+      socket.emit('error', { message: 'Failed to kick student' });
+    }
+  });
+
+  // Ban student from room
+  socket.on('ban-student', async (data) => {
+    try {
+      console.log('📨 Received ban-student event:', data);
+      const { roomCode, teacherId, studentId } = data;
+      const room = await Room.findByCode(roomCode);
+
+      if (!room) {
+        console.error('❌ Room not found for ban:', roomCode);
+        socket.emit('error', { message: 'Room not found' });
+        return;
+      }
+
+      // Verify teacher
+      if (room.teacherId.toString() !== teacherId) {
+        console.error('❌ Only teacher can ban:', room.teacherId.toString(), 'vs', teacherId);
+        socket.emit('error', { message: 'Only the teacher can ban students' });
+        return;
+      }
+
+      console.log('✅ Teacher verified, banning student:', studentId);
+
+      // Add student to banned list
+      if (!room.bannedStudents) {
+        room.bannedStudents = [];
+      }
+      
+      const mongoose = require('mongoose');
+      const studentObjectId = new mongoose.Types.ObjectId(studentId);
+      
+      if (!room.bannedStudents.some(id => id.toString() === studentId)) {
+        room.bannedStudents.push(studentObjectId);
+        await room.save();
+        console.log('✅ Student added to banned list and saved');
+      } else {
+        console.log('⚠️ Student already in banned list');
+      }
+
+      // Find and kick student socket
+      const roomSockets = await io.in(roomCode).fetchSockets();
+      const studentSocket = roomSockets.find(s => s.userId === studentId && s.role === 'student');
+
+      if (studentSocket) {
+        console.log('✅ Found student socket, disconnecting:', studentSocket.id);
+        studentSocket.emit('banned-from-room', {
+          message: 'You have been banned from this room',
+          roomCode
+        });
+
+        studentSocket.leave(roomCode);
+        await removeRoomParticipant(room._id.toString(), studentSocket.id);
+        studentSocket.disconnect(true);
+      } else {
+        console.log('⚠️ Student socket not found in room');
+      }
+
+      // Update room participants
+      const roomState = await getRoomState(room._id.toString());
+      const participantsList = Object.values(roomState?.participants || {});
+
+      io.to(roomCode).emit('room-update', {
+        room: room.toObject(),
+        participants: participantsList,
+        totalStudents: participantsList.filter(p => p.role === 'student').length,
+        totalParticipants: participantsList.length,
+      });
+
+      socket.emit('student-banned', {
+        message: 'Student banned from room',
+        studentId
+      });
+
+      console.log(`⛔ Student ${studentId} banned from room ${roomCode}`);
+
+    } catch (error) {
+      console.error('Error banning student:', error);
+      socket.emit('error', { message: 'Failed to ban student' });
+    }
+  });
+
+  // Unban student from room
+  socket.on('unban-student', async (data) => {
+    try {
+      console.log('📨 Received unban-student event:', data);
+      const { roomCode, teacherId, studentId } = data;
+      const room = await Room.findByCode(roomCode);
+
+      if (!room) {
+        console.error('❌ Room not found for unban:', roomCode);
+        socket.emit('error', { message: 'Room not found' });
+        return;
+      }
+
+      // Verify teacher
+      if (room.teacherId.toString() !== teacherId) {
+        console.error('❌ Only teacher can unban:', room.teacherId.toString(), 'vs', teacherId);
+        socket.emit('error', { message: 'Only the teacher can unban students' });
+        return;
+      }
+
+      console.log('✅ Teacher verified, unbanning student:', studentId);
+
+      // Remove student from banned list
+      if (room.bannedStudents && room.bannedStudents.length > 0) {
+        const initialLength = room.bannedStudents.length;
+        room.bannedStudents = room.bannedStudents.filter(id => id.toString() !== studentId);
+        
+        if (room.bannedStudents.length < initialLength) {
+          await room.save();
+          console.log('✅ Student removed from banned list and saved');
+        } else {
+          console.log('⚠️ Student was not in banned list');
+        }
+      }
+
+      socket.emit('student-unbanned', {
+        message: 'Student unbanned from room',
+        studentId
+      });
+
+      console.log(`✅ Student ${studentId} unbanned from room ${roomCode}`);
+
+    } catch (error) {
+      console.error('Error unbanning student:', error);
+      socket.emit('error', { message: 'Failed to unban student' });
+    }
+  });
+
+  // Get banned students list
+  socket.on('get-banned-students', async (data) => {
+    try {
+      console.log('📨 Received get-banned-students event:', data);
+      const { roomCode, teacherId } = data;
+      
+      // Find room (don't populate to avoid schema errors)
+      const room = await Room.findOne({ roomCode: roomCode.toUpperCase() });
+
+      if (!room) {
+        console.error('❌ Room not found');
+        socket.emit('error', { message: 'Room not found' });
+        return;
+      }
+
+      // Verify teacher
+      if (room.teacherId.toString() !== teacherId) {
+        console.error('❌ Only teacher can view banned students');
+        socket.emit('error', { message: 'Only the teacher can view banned students' });
+        return;
+      }
+
+      console.log('📋 Banned student IDs in room:', room.bannedStudents);
+
+      let bannedStudentsList = [];
+
+      // If there are banned students, fetch their details
+      if (room.bannedStudents && room.bannedStudents.length > 0) {
+        const users = await User.find({
+          _id: { $in: room.bannedStudents }
+        }).select('name email');
+
+        bannedStudentsList = users.map(user => ({
+          userId: user._id.toString(),
+          name: user.name || 'Unknown',
+          email: user.email || '',
+        }));
+      }
+
+      console.log('✅ Sending banned students list:', bannedStudentsList);
+
+      socket.emit('banned-students-list', {
+        bannedStudents: bannedStudentsList
+      });
+
+    } catch (error) {
+      console.error('Error getting banned students:', error);
+      socket.emit('error', { message: 'Failed to get banned students' });
     }
   });
 

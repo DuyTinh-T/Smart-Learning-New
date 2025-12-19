@@ -11,6 +11,7 @@ export interface IRoom extends Document {
   endTime?: Date;
   duration: number; // duration in minutes
   allowedStudents?: mongoose.Types.ObjectId[]; // optional: specific students allowed
+  bannedStudents?: mongoose.Types.ObjectId[]; // students who are banned from this room
   maxStudents?: number; // optional: limit number of students
   settings: {
     shuffleQuestions: boolean;
@@ -76,6 +77,10 @@ const RoomSchema = new Schema<IRoom>({
     max: [180, 'Duration cannot be more than 3 hours (180 minutes)']
   },
   allowedStudents: [{
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  bannedStudents: [{
     type: Schema.Types.ObjectId,
     ref: 'User'
   }],

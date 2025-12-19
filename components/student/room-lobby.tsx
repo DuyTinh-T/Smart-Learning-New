@@ -116,6 +116,30 @@ export function StudentRoomLobby({ roomCode }: StudentRoomLobbyProps) {
       router.push(`/student/results/${roomCode}`);
     });
 
+    // Listen for kicked from room
+    socket.on('kicked-from-room', (data) => {
+      toast({
+        title: 'Removed from Room',
+        description: data.message,
+        variant: 'destructive',
+      });
+      setTimeout(() => {
+        router.push('/student/dashboard');
+      }, 2000);
+    });
+
+    // Listen for banned from room
+    socket.on('banned-from-room', (data) => {
+      toast({
+        title: 'Banned from Room',
+        description: data.message,
+        variant: 'destructive',
+      });
+      setTimeout(() => {
+        router.push('/student/dashboard');
+      }, 2000);
+    });
+
     // Listen for errors
     socket.on('error', (data) => {
       toast({
@@ -129,6 +153,8 @@ export function StudentRoomLobby({ roomCode }: StudentRoomLobbyProps) {
       socket.off('room-update');
       socket.off('exam-started');
       socket.off('exam-ended');
+      socket.off('kicked-from-room');
+      socket.off('banned-from-room');
       socket.off('error');
     };
   }, [socket, isConnected, roomCode, router, toast]);
