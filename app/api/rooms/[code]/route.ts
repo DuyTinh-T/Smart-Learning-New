@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Room from '@/models/Room';
 import User from '@/models/User';
+import ExamQuiz from '@/models/ExamQuiz'; // Import ExamQuiz model to register it with Mongoose
 import { verifyToken } from '@/lib/auth';
 
 // Helper function to get user from request
@@ -24,20 +25,25 @@ export async function GET(
 ) {
   try {
     const { code } = await params;
+    console.log('📨 GET /api/rooms/[code] - Code:', code);
     
     const user = await getUserFromRequest(request);
     
     if (!user) {
+      console.log('❌ No user found in request');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    console.log('✅ User authenticated:', user._id, user.role);
 
     await connectDB();
     
     const room = await Room.findByCode(code);
     
     if (!room) {
+      console.log('❌ Room not found:', code);
       return NextResponse.json({ error: 'Room not found' }, { status: 404 });
     }
+    console.log('✅ Room found:', room._id, room.status);
 
     // Check if user has access to this room
     const isTeacher = (room.teacherId as any).toString() === (user as any)._id.toString();
@@ -50,22 +56,42 @@ export async function GET(
       (room.allowedStudents?.some(id => id.toString() === (user as any)._id.toString()) ?? false);
 
     if (!isTeacher && !isAllowedStudent && user.role === 'student') {
+      console.log('❌ Access denied for student:', user._id);
       return NextResponse.json({ error: 'Access denied to this room' }, { status: 403 });
     }
+    console.log('✅ Access granted -', isTeacher ? 'Teacher' : 'Student');
 
     // Populate exam quiz data
-    const populatedRoom = await Room.findById(room._id)
-      .populate('examQuizId')
-      .populate('teacherId', 'name email');
+    try {
+      const populatedRoom = await Room.findById(room._id)
+        .populate('examQuizId')
+        .populate('teacherId', 'name email');
 
-    return NextResponse.json({ 
-      room: populatedRoom,
-      userRole: isTeacher ? 'teacher' : 'student'
-    }, { status: 200 });
+      console.log('✅ Room populated successfully');
+      
+      return NextResponse.json({ 
+        room: populatedRoom,
+        userRole: isTeacher ? 'teacher' : 'student'
+      }, { status: 200 });
+    } catch (populateError) {
+      console.error('❌ Error populating room:', populateError);
+      // Return unpopulated room if populate fails
+      return NextResponse.json({ 
+        room: room,
+        userRole: isTeacher ? 'teacher' : 'student'
+      }, { status: 200 });
+    }
     
   } catch (error) {
-    console.error('Error fetching room:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    console.error('❌ Error fetching room:', error);
+    // Log stack trace for better debugging
+    if (error instanceof Error) {
+      console.error('Stack:', error.stack);
+    }
+    return NextResponse.json({ 
+      error: 'Internal Server Error',
+      details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
+    }, { status: 500 });
   }
 }
 
