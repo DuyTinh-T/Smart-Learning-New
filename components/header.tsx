@@ -40,22 +40,18 @@ export function Header() {
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-6">
-          <Link href="/courses" className="text-sm font-medium transition-colors hover:text-primary">
-            Khóa học
-          </Link>
-          {user?.role === "student" && (
-            <Link href="/bookmarks" className="text-sm font-medium transition-colors hover:text-primary">
-              Đánh dấu
-            </Link>
+           {user?.role === "student" && (
+
+            <nav className="hidden md:flex items-center gap-6">
+              <Link href="/courses" className="text-sm font-medium transition-colors hover:text-primary">
+                Khóa học
+              </Link>
+            
+                <Link href="/bookmarks" className="text-sm font-medium transition-colors hover:text-primary">
+                  Nơi lưu trữ
+                </Link>
+            </nav>
           )}
-          <Link href="/about" className="text-sm font-medium transition-colors hover:text-primary">
-            Giới thiệu
-          </Link>
-          <Link href="/contact" className="text-sm font-medium transition-colors hover:text-primary">
-            Liên hệ
-          </Link>
-        </nav>
 
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={toggleTheme}>
