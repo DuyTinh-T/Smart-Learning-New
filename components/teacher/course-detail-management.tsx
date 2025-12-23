@@ -27,6 +27,7 @@ import {
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { courseApi, moduleApi, lessonApi, handleApiError } from "@/lib/api/course-api"
+import { uploadFile } from "@/lib/supabase"
 import {
   Dialog,
   DialogContent,
@@ -148,6 +149,8 @@ export function CourseDetailManagement({ courseId, onBack }: CourseDetailManagem
     duration: 0,
     difficulty: 'beginner' as 'beginner' | 'intermediate' | 'advanced'
   })
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
 
   // Check if current user can edit this course
   const canEditCourse = () => {
@@ -255,6 +258,74 @@ export function CourseDetailManagement({ courseId, onBack }: CourseDetailManagem
   }
 
   // Lesson handlers
+  const handleVideoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    const validTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime']
+    if (!validTypes.includes(file.type)) {
+      toast({
+        title: "Lỗi",
+        description: "Vui lòng chọn file video hợp lệ (MP4, WebM, OGG, MOV)",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Validate file size (max 500MB)
+    const maxSize = 500 * 1024 * 1024 // 500MB
+    if (file.size > maxSize) {
+      toast({
+        title: "Lỗi",
+        description: "Kích thước video không được vượt quá 500MB",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setIsUploadingVideo(true)
+      setUploadProgress(0)
+      
+      toast({
+        title: "Đang tải video lên...",
+        description: "Vui lòng đợi, quá trình này có thể mất vài phút.",
+      })
+
+      // Simulate progress for better UX
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => Math.min(prev + 10, 90))
+      }, 500)
+
+      // Upload to Supabase storage in 'course-thumbnails' bucket, 'videos' folder
+      const videoUrl = await uploadFile(file, 'course-thumbnails', 'videos')
+
+      clearInterval(progressInterval)
+      setUploadProgress(100)
+
+      // Update form data with video URL
+      setLessonFormData(prev => ({ ...prev, videoUrl }))
+
+      toast({
+        title: "Thành công!",
+        description: "Video đã được tải lên thành công",
+      })
+    } catch (error: any) {
+      console.error('Failed to upload video:', error)
+      toast({
+        title: "Lỗi",
+        description: error.message || "Không thể tải video lên. Vui lòng thử lại.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsUploadingVideo(false)
+      setUploadProgress(0)
+      // Reset input
+      event.target.value = ''
+    }
+  }
+
   const openLessonDialog = (moduleId: string, lesson?: Lesson) => {
     setSelectedModuleId(moduleId)
     
@@ -984,18 +1055,101 @@ export function CourseDetailManagement({ courseId, onBack }: CourseDetailManagem
             </div>
             
             {lessonFormData.type === 'video' && (
-              <div>
-                <Label htmlFor="lesson-video-url">Video URL *</Label>
-                <Input
-                  id="lesson-video-url"
-                  type="url"
-                  value={lessonFormData.videoUrl}
-                  onChange={(e) => setLessonFormData(prev => ({ ...prev, videoUrl: e.target.value }))}
-                  placeholder="https://www.youtube.com/watch?v=... hoặc https://vimeo.com/..."
-                />
-                <p className="text-sm text-muted-foreground mt-1">
-                  Hỗ trợ YouTube, Vimeo và video URL trực tiếp
-                </p>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="lesson-video-url">Video URL *</Label>
+                  <Input
+                    id="lesson-video-url"
+                    type="url"
+                    value={lessonFormData.videoUrl}
+                    onChange={(e) => setLessonFormData(prev => ({ ...prev, videoUrl: e.target.value }))}
+                    placeholder="https://www.youtube.com/watch?v=... hoặc https://vimeo.com/..."
+                    disabled={isUploadingVideo}
+                  />
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Hỗ trợ YouTube, Vimeo và video URL trực tiếp
+                  </p>
+                </div>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">Hoặc</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="video-upload">Upload Video Của Bạn</Label>
+                  <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary transition-colors">
+                    {isUploadingVideo ? (
+                      <div className="space-y-3">
+                        <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+                        <p className="text-sm font-medium">Đang tải video lên... {uploadProgress}%</p>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-primary h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${uploadProgress}%` }}
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Vui lòng không đóng trang này
+                        </p>
+                      </div>
+                    ) : lessonFormData.videoUrl && !lessonFormData.videoUrl.includes('youtube') && !lessonFormData.videoUrl.includes('vimeo') ? (
+                      <div className="space-y-3">
+                        <Video className="h-8 w-8 mx-auto text-green-600" />
+                        <p className="text-sm font-medium text-green-600">✓ Video đã được tải lên</p>
+                        <p className="text-xs text-muted-foreground break-all">
+                          {lessonFormData.videoUrl}
+                        </p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setLessonFormData(prev => ({ ...prev, videoUrl: '' }))}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Xóa và tải lên video khác
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <Video className="h-8 w-8 mx-auto text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-medium mb-1">Tải video lên từ máy tính</p>
+                          <p className="text-xs text-muted-foreground">
+                            Hỗ trợ MP4, WebM, OGG, MOV (tối đa 500MB)
+                          </p>
+                        </div>
+                        <label htmlFor="video-upload">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="cursor-pointer"
+                            asChild
+                          >
+                            <span>
+                              <Plus className="h-4 w-4 mr-2" />
+                              Chọn file video
+                            </span>
+                          </Button>
+                        </label>
+                        <input
+                          id="video-upload"
+                          type="file"
+                          accept="video/mp4,video/webm,video/ogg,video/quicktime"
+                          onChange={handleVideoUpload}
+                          className="hidden"
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    💡 Video sẽ được lưu trữ trên cloud và có thể phát trực tiếp
+                  </p>
+                </div>
               </div>
             )}
             
