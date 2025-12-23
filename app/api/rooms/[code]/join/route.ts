@@ -21,7 +21,7 @@ async function getUserFromRequest(request: NextRequest) {
 // POST /api/rooms/[code]/join - Student joins room
 export async function POST(
   request: NextRequest,
-  { params }: { params: { code: string } }
+  { params }: { params: Promise<{ code: string }> }
 ) {
   try {
     const user = await getUserFromRequest(request);
@@ -32,7 +32,8 @@ export async function POST(
 
     await connectDB();
     
-    const room = await Room.findByCode(params.code);
+    const { code } = await params;
+    const room = await Room.findByCode(code);
     
     if (!room) {
       return NextResponse.json({ error: 'Room not found' }, { status: 404 });
@@ -40,6 +41,17 @@ export async function POST(
 
     if (room.status === 'ended') {
       return NextResponse.json({ error: 'This room has ended' }, { status: 400 });
+    }
+
+    // Check if student is banned from this room
+    if (room.bannedStudents && room.bannedStudents.length > 0) {
+      const isBanned = room.bannedStudents.some(id => id.toString() === (user as any)._id.toString());
+      if (isBanned) {
+        return NextResponse.json({ 
+          error: 'You have been banned from this room',
+          banned: true 
+        }, { status: 403 });
+      }
     }
 
     // Check if student is allowed (if allowedStudents is set)
@@ -54,7 +66,10 @@ export async function POST(
     if (room.maxStudents) {
       const existingSubmissions = await Submission.countDocuments({ roomId: room._id });
       if (existingSubmissions >= room.maxStudents) {
-        return NextResponse.json({ error: 'Room is full' }, { status: 400 });
+        return NextResponse.json({ 
+          error: `This exam room is full. Maximum capacity: ${room.maxStudents} students.`,
+          roomFull: true 
+        }, { status: 400 });
       }
     }
 

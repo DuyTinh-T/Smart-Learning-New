@@ -5,7 +5,7 @@ import { verifyAuth } from '@/lib/auth';
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify admin authentication
@@ -19,7 +19,8 @@ export async function PATCH(
 
     await connectDB();
 
-    const studentId = params.id;
+    const { id } = await params;
+    const studentId = id;
     const body = await request.json();
     const { isActive } = body;
 
