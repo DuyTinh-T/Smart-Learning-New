@@ -123,6 +123,18 @@ export function StudentJoinRoom() {
 
       if (!joinResponse.ok) {
         console.error('❌ Join failed:', joinData);
+        
+        if (joinData.roomFull) {
+          toast({
+            title: 'Room Full',
+            description: joinData.error || 'This exam room has reached maximum capacity',
+            variant: 'default',
+          });
+          setLoading(false);
+          return;
+        }
+        
+        // For other errors, throw as usual
         throw new Error(joinData.error || 'Failed to join room');
       }
 

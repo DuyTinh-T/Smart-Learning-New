@@ -21,7 +21,7 @@ async function getUserFromRequest(request: NextRequest) {
 // GET /api/rooms/[code]/statistics - Get room statistics (teacher only)
 export async function GET(
   request: NextRequest,
-  { params }: { params: { code: string } }
+  { params }: { params: Promise<{ code: string }> }
 ) {
   try {
     const user = await getUserFromRequest(request);
@@ -32,7 +32,8 @@ export async function GET(
 
     await connectDB();
     
-    const room = await Room.findByCode(params.code);
+    const { code } = await params;
+    const room = await Room.findByCode(code);
     
     if (!room) {
       return NextResponse.json({ error: 'Room not found' }, { status: 404 });

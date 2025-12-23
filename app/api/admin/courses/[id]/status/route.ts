@@ -5,7 +5,7 @@ import Course from '@/models/Course'
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify admin authentication
@@ -28,9 +28,11 @@ export async function PATCH(
       )
     }
 
+    const { id } = await params;
+
     // Update course status
     const course = await Course.findByIdAndUpdate(
-      params.id,
+      id,
       { isActive },
       { new: true }
     )

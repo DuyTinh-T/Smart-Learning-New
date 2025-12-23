@@ -7,7 +7,7 @@ import { verifyAuth } from '@/lib/auth';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify admin authentication
@@ -21,7 +21,8 @@ export async function GET(
 
     await connectDB();
 
-    const teacherId = params.id;
+    const { id } = await params;
+    const teacherId = id;
 
     // Get teacher details
     const teacher = await User.findById(teacherId)
