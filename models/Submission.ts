@@ -21,6 +21,7 @@ export interface ISubmission extends Document {
   timeSpent: number; // total time in seconds
   status: 'in-progress' | 'submitted' | 'auto-submitted' | 'graded';
   feedback?: string;
+  violations?: Array<{type: string, count: number}>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -113,6 +114,17 @@ const SubmissionSchema = new Schema<ISubmission>({
     type: String,
     maxlength: [2000, 'Feedback cannot be more than 2000 characters']
   },
+  violations: [{
+    type: {
+      type: String,
+      required: true
+    },
+    count: {
+      type: Number,
+      required: true,
+      min: 0
+    }
+  }],
   createdAt: {
     type: Date,
     default: Date.now

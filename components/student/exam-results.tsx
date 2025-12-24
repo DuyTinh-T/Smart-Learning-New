@@ -33,6 +33,11 @@ interface Submission {
   submittedAt: string;
   timeSpent: number;
   answers: Answer[];
+  violations?: {type: string, count: number}[];
+  quizId?: {
+    type: 'multiple-choice' | 'essay' | 'mixed';
+    title: string;
+  };
 }
 
 interface StudentExamResultsProps {
@@ -110,6 +115,111 @@ export function StudentExamResults({ roomCode }: StudentExamResultsProps) {
     );
   }
 
+  // Check if essay exam and not yet graded
+  const isEssayExam = submission.quizId?.type === 'essay' || submission.quizId?.type === 'mixed';
+  const isGraded = submission.status === 'graded';
+
+  if (isEssayExam && !isGraded) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-6">
+        <Card>
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-4">
+              <Clock className="h-16 w-16 text-blue-600" />
+            </div>
+            <CardTitle className="text-2xl">Bài Thi Đã Nộp</CardTitle>
+            <CardDescription>
+              Đang chờ giáo viên chấm điểm
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent className="space-y-4">
+            <div className="text-center p-6 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200">
+              <p className="text-sm text-blue-800 dark:text-blue-400 mb-2">
+                Bài thi của bạn đã được nộp thành công!
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Giáo viên sẽ chấm điểm và đánh giá bài làm của bạn. Vui lòng quay lại sau để xem kết quả.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="text-center p-4 bg-muted rounded-lg">
+                <p className="text-sm text-muted-foreground mb-1">Số câu hỏi</p>
+                <p className="text-xl font-bold">{submission.answers.length}</p>
+              </div>
+
+              <div className="text-center p-4 bg-muted rounded-lg">
+                <p className="text-sm text-muted-foreground mb-1">Thời gian làm bài</p>
+                <p className="text-xl font-bold">{formatTime(submission.timeSpent)}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-center gap-2 mt-4">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                Đã nộp lúc {new Date(submission.submittedAt).toLocaleString('vi-VN')}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Violations Summary (if any) */}
+        {submission.violations && submission.violations.length > 0 && (
+          <Card className="border-orange-300">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-orange-600">
+                <XCircle className="h-5 w-5" />
+                Vi phạm trong bài thi
+              </CardTitle>
+              <CardDescription>
+                Tổng cộng {submission.violations.reduce((sum, v) => sum + v.count, 0)} vi phạm đã được ghi nhận
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {submission.violations.map((violation, index) => {
+                  const violationLabels: {[key: string]: string} = {
+                    'tab-switch': 'Chuyển tab',
+                    'window-blur': 'Chuyển cửa sổ',
+                    'copy-attempt': 'Thử copy',
+                    'paste-attempt': 'Thử paste',
+                    'cut-attempt': 'Thử cut',
+                    'devtools-attempt': 'Thử mở DevTools',
+                    'alt-tab': 'Sử dụng Alt+Tab',
+                  };
+
+                  return (
+                    <div key={index} className="flex items-center justify-between p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200">
+                      <span className="text-sm font-medium text-orange-800 dark:text-orange-400">
+                        {violationLabels[violation.type] || violation.type}
+                      </span>
+                      <Badge variant="destructive">
+                        {violation.count} lần
+                      </Badge>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="mt-4 text-xs text-muted-foreground">
+                Lưu ý: Các vi phạm này đã được ghi lại và giáo viên có thể xem chi tiết.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Actions */}
+        <div className="flex justify-center">
+          <Button onClick={() => router.push('/student/dashboard')}>
+            <Home className="h-4 w-4 mr-2" />
+            Về Trang Chủ
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   const getGradeColor = (percentage: number) => {
     if (percentage >= 80) return 'text-green-600';
     if (percentage >= 60) return 'text-blue-600';
@@ -179,6 +289,51 @@ export function StudentExamResults({ roomCode }: StudentExamResultsProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Violations Summary */}
+      {submission.violations && submission.violations.length > 0 && (
+        <Card className="border-orange-300">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-orange-600">
+              <XCircle className="h-5 w-5" />
+              Vi phạm trong bài thi
+            </CardTitle>
+            <CardDescription>
+              Tổng cộng {submission.violations.reduce((sum, v) => sum + v.count, 0)} vi phạm đã được ghi nhận
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {submission.violations.map((violation, index) => {
+                const violationLabels: {[key: string]: string} = {
+                  'tab-switch': 'Chuyển tab',
+                  'window-blur': 'Chuyển cửa sổ',
+                  'copy-attempt': 'Thử copy',
+                  'paste-attempt': 'Thử paste',
+                  'cut-attempt': 'Thử cut',
+                  'devtools-attempt': 'Thử mở DevTools',
+                  'alt-tab': 'Sử dụng Alt+Tab',
+                };
+
+                return (
+                  <div key={index} className="flex items-center justify-between p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200">
+                    <span className="text-sm font-medium text-orange-800 dark:text-orange-400">
+                      {violationLabels[violation.type] || violation.type}
+                    </span>
+                    <Badge variant="destructive">
+                      {violation.count} lần
+                    </Badge>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="mt-4 text-xs text-muted-foreground">
+              Lưu ý: Các vi phạm này đã được ghi lại và giáo viên có thể xem chi tiết.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Answer Review */}
       <Card>

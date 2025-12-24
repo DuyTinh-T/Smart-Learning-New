@@ -124,6 +124,16 @@ export function StudentJoinRoom() {
       if (!joinResponse.ok) {
         console.error('❌ Join failed:', joinData);
         
+        if (joinData.banned) {
+          toast({
+            title: '⛔ Bị Cấm Truy Cập',
+            description: 'Bạn đã bị cấm từ phòng này bởi giáo viên. Vui lòng liên hệ với giáo viên để được giải quyết.',
+            variant: 'destructive',
+          });
+          setLoading(false);
+          return;
+        }
+        
         if (joinData.roomFull) {
           toast({
             title: 'Room Full',

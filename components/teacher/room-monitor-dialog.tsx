@@ -173,17 +173,23 @@ export function RoomMonitorDialog({
 
     const handleStudentUnbanned = (data: any) => {
       console.log('✅ Student unbanned:', data);
-      toast({
-        title: 'Success',
-        description: data.message,
-      });
-      // Refresh banned list
-      fetchBannedStudents();
+      // Only handle if this event is for THIS specific room
+      if (data.roomCode === room.roomCode) {
+        toast({
+          title: 'Success',
+          description: data.message,
+        });
+        // Refresh banned list
+        fetchBannedStudents();
+      }
     };
 
     const handleBannedStudentsList = (data: any) => {
       console.log('📋 Banned students list:', data);
-      setBannedStudents(data.bannedStudents || []);
+      // Only update if this event is for THIS specific room
+      if (data.roomCode === room.roomCode) {
+        setBannedStudents(data.bannedStudents || []);
+      }
     };
 
     const handleError = (data: any) => {

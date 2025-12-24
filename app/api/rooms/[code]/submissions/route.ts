@@ -63,6 +63,13 @@ export async function GET(
     .sort({ submittedAt: -1 });
 
     console.log('✅ Found submissions:', submissions.length);
+    
+    // Log violations for debugging
+    submissions.forEach((s, i) => {
+      if (s.violations && s.violations.length > 0) {
+        console.log(`📊 Submission ${i} violations:`, s.violations);
+      }
+    });
 
     return NextResponse.json({ 
       submissions: submissions.map(s => s.toObject())
