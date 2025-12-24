@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import OpenAI from 'openai'
 import dbConnect from '@/lib/mongodb'
 import Course from '@/models/Course'
 import { Enrollment } from '@/models/Enrollment'
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || '',
+})
 
 export async function POST(request: NextRequest) {
   try {
@@ -93,9 +95,23 @@ Trả về JSON với format sau (CHỈ trả về JSON thuần, KHÔNG có mark
 Chọn 3 khóa học phù hợp nhất.
 `
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
-    const result = await model.generateContent(prompt)
-    const responseText = result.response.text()
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a learning advisor. Always respond with valid JSON only.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      temperature: 0.7,
+      response_format: { type: 'json_object' }
+    })
+
+    const responseText = completion.choices[0]?.message?.content || '{}'
 
     // Parse AI response
     let aiResponse

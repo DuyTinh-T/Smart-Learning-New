@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import OpenAI from "openai";
 import connectDB from "@/lib/mongodb";
 import Lesson from "@/models/Lesson";
 import mongoose from "mongoose";
@@ -25,16 +25,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!process.env.GEMINI_API_KEY) {
+    if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json(
-        { error: "Gemini API key not configured" },
+        { error: "OpenAI API key not configured" },
         { status: 500 }
       );
     }
 
-    // Initialize Gemini AI
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    // Initialize OpenAI
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
 
     const prompt = `You are an expert educational content creator and course designer.
 Your task is to create a complete lesson with detailed content and quiz questions in Vietnamese.
@@ -89,15 +90,29 @@ Your task is to create a complete lesson with detailed content and quiz question
 
 Only return valid JSON, no additional explanatory text.`;
 
-    // Call Gemini API
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const resultText = response.text();
+    // Call OpenAI API
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: "You are an expert educational content creator. Always respond with valid JSON only, no additional text."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      temperature: 0.7,
+      response_format: { type: "json_object" }
+    });
+
+    const resultText = completion.choices[0]?.message?.content || "{}";
     
     // Parse JSON from response
     let aiGenerated;
     try {
-      // Extract JSON from response (Gemini might include markdown code blocks)
+      // Extract JSON from response
       const jsonMatch = resultText.match(/\{[\s\S]*\}/);
       const jsonText = jsonMatch ? jsonMatch[0] : resultText;
       aiGenerated = JSON.parse(jsonText);
@@ -156,7 +171,7 @@ Only return valid JSON, no additional explanatory text.`;
 // GET endpoint for testing
 export async function GET() {
   return NextResponse.json({
-    message: "AI Lesson Generator API (Gemini)",
+    message: "AI Lesson Generator API (OpenAI GPT-4o-mini)",
     usage: "POST with { topic, level, numQuestions, moduleId?, order?, objectives?, duration? }",
     example: {
       topic: "Introduction to JavaScript",
