@@ -34,7 +34,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { answers } = body;
+    const { answers, violations } = body;
 
     if (!answers || !Array.isArray(answers)) {
       return NextResponse.json({ error: 'Answers array is required' }, { status: 400 });
@@ -118,6 +118,12 @@ export async function POST(
     submission.percentage = totalPoints > 0 ? Math.round((totalScore / totalPoints) * 100) : 0;
     submission.status = 'submitted';
     submission.submittedAt = new Date();
+    
+    // Save violations if provided
+    if (violations && Array.isArray(violations)) {
+      submission.violations = violations;
+      console.log('🚨 Violations recorded:', violations);
+    }
     
     if (submission.startedAt) {
       submission.timeSpent = Math.floor((submission.submittedAt.getTime() - submission.startedAt.getTime()) / 1000);

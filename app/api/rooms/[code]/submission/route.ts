@@ -44,14 +44,17 @@ export async function GET(
     const submission = await Submission.findOne({
       roomId: room._id,
       studentId: (user as any)._id,
-    });
+    }).populate('quizId', 'type title');
 
     if (!submission) {
       return NextResponse.json({ error: 'No submission found' }, { status: 404 });
     }
 
+    const submissionObj = submission.toObject();
+    console.log('📊 Student submission violations:', submissionObj.violations);
+
     return NextResponse.json({ 
-      submission: submission.toObject()
+      submission: submissionObj
     }, { status: 200 });
     
   } catch (error) {

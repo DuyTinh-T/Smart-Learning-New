@@ -647,6 +647,7 @@ io.on('connection', (socket) => {
 
       io.to(roomCode).emit('exam-started', {
         message: 'Exam has started!',
+        roomCode: roomCode,
         startTime: room.startTime,
         endTime: room.endTime,
         duration: room.duration,
@@ -879,9 +880,29 @@ io.on('connection', (socket) => {
         totalParticipants: participantsList.length,
       });
 
-      socket.emit('student-banned', {
+      // Broadcast to all users in room (including teachers) about the ban
+      io.to(roomCode).emit('student-banned', {
         message: 'Student banned from room',
         studentId
+      });
+
+      // Send updated banned students list to all teachers in room
+      let bannedStudentsList = [];
+      if (room.bannedStudents && room.bannedStudents.length > 0) {
+        const users = await User.find({
+          _id: { $in: room.bannedStudents }
+        }).select('name email');
+
+        bannedStudentsList = users.map(user => ({
+          userId: user._id.toString(),
+          name: user.name || 'Unknown',
+          email: user.email || '',
+        }));
+      }
+
+      io.to(roomCode).emit('banned-students-list', {
+        roomCode: roomCode,
+        bannedStudents: bannedStudentsList
       });
 
       console.log(`⛔ Student ${studentId} banned from room ${roomCode}`);
@@ -929,6 +950,7 @@ io.on('connection', (socket) => {
 
       socket.emit('student-unbanned', {
         message: 'Student unbanned from room',
+        roomCode: roomCode,
         studentId
       });
 
@@ -982,6 +1004,7 @@ io.on('connection', (socket) => {
       console.log('✅ Sending banned students list:', bannedStudentsList);
 
       socket.emit('banned-students-list', {
+        roomCode: roomCode,
         bannedStudents: bannedStudentsList
       });
 

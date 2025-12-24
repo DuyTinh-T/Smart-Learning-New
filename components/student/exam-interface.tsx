@@ -62,6 +62,9 @@ export function StudentExamInterface({ roomCode }: StudentExamInterfaceProps) {
   const [submitting, setSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [startTime] = useState(Date.now());
+  const [violations, setViolations] = useState<{type: string, count: number}[]>([]);
+  const [showWarning, setShowWarning] = useState(false);
+  const [warningMessage, setWarningMessage] = useState('');
   
   const { socket, isConnected } = useSocket();
   const { submitExam } = useRoomSocket();
@@ -127,11 +130,139 @@ export function StudentExamInterface({ roomCode }: StudentExamInterfaceProps) {
     } finally {
       setLoading(false);
     }
-  }, [roomCode, router, toast]);
+  }, [roomCode, router, toast, token]);
 
   useEffect(() => {
     fetchRoomData();
   }, [fetchRoomData]);
+
+  // Track violations
+  const recordViolation = useCallback((type: string, message: string) => {
+    setViolations(prev => {
+      const existing = prev.find(v => v.type === type);
+      if (existing) {
+        return prev.map(v => v.type === type ? {...v, count: v.count + 1} : v);
+      }
+      return [...prev, {type, count: 1}];
+    });
+
+    // Show warning to student
+    setWarningMessage(message);
+    setShowWarning(true);
+    setTimeout(() => setShowWarning(false), 5000);
+
+    // Send violation to server
+    if (socket && authUser) {
+      socket.emit('exam-violation', {
+        roomCode,
+        studentId: authUser._id,
+        studentName: authUser.name,
+        type,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Log to console
+    console.warn('⚠️ Exam Violation:', type, message);
+  }, [socket, authUser, roomCode]);
+
+  // Monitor tab/window visibility changes
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && !isSubmitted) {
+        recordViolation('tab-switch', 'Phát hiện chuyển tab! Vui lòng không rời khỏi trang thi.');
+      }
+    };
+
+    const handleBlur = () => {
+      if (!isSubmitted) {
+        recordViolation('window-blur', 'Phát hiện chuyển cửa sổ! Vui lòng tập trung vào bài thi.');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, [isSubmitted, recordViolation]);
+
+  // Disable copy, paste, and dangerous shortcuts
+  useEffect(() => {
+    const handleCopy = (e: ClipboardEvent) => {
+      e.preventDefault();
+      recordViolation('copy-attempt', 'Copy đã bị vô hiệu hóa trong bài thi.');
+      return false;
+    };
+
+    const handlePaste = (e: ClipboardEvent) => {
+      // Allow paste in textarea for essay questions
+      const target = e.target as HTMLElement;
+      if (target.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        recordViolation('paste-attempt', 'Paste chỉ được phép trong câu hỏi tự luận.');
+        return false;
+      }
+    };
+
+    const handleCut = (e: ClipboardEvent) => {
+      e.preventDefault();
+      recordViolation('cut-attempt', 'Cut đã bị vô hiệu hóa trong bài thi.');
+      return false;
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Prevent F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U (DevTools)
+      if (
+        e.key === 'F12' ||
+        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) ||
+        (e.ctrlKey && e.key === 'U')
+      ) {
+        e.preventDefault();
+        recordViolation('devtools-attempt', 'Công cụ phát triển đã bị vô hiệu hóa.');
+        return false;
+      }
+
+      // Prevent Ctrl+C (copy) but allow in textarea
+      if (e.ctrlKey && e.key === 'c') {
+        const target = e.target as HTMLElement;
+        if (target.tagName !== 'TEXTAREA' && target.tagName !== 'INPUT') {
+          e.preventDefault();
+          recordViolation('copy-attempt', 'Copy đã bị vô hiệu hóa.');
+          return false;
+        }
+      }
+
+      // Prevent Ctrl+V (paste) outside textarea
+      if (e.ctrlKey && e.key === 'v') {
+        const target = e.target as HTMLElement;
+        if (target.tagName !== 'TEXTAREA') {
+          e.preventDefault();
+          recordViolation('paste-attempt', 'Paste chỉ được phép trong câu hỏi tự luận.');
+          return false;
+        }
+      }
+
+      // Prevent Alt+Tab (can't actually prevent but can detect)
+      if (e.altKey && e.key === 'Tab') {
+        recordViolation('alt-tab', 'Phát hiện Alt+Tab.');
+      }
+    };
+
+    document.addEventListener('copy', handleCopy);
+    document.addEventListener('paste', handlePaste);
+    document.addEventListener('cut', handleCut);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('copy', handleCopy);
+      document.removeEventListener('paste', handlePaste);
+      document.removeEventListener('cut', handleCut);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [recordViolation]);
 
   // Timer countdown
   useEffect(() => {
@@ -253,9 +384,15 @@ export function StudentExamInterface({ roomCode }: StudentExamInterfaceProps) {
         timeTaken: answer.timeTaken,
       }));
 
-      console.log('📤 Submitting exam:', { roomCode, studentId: authUser._id, answersCount: finalAnswers.length });
+      console.log('📤 Submitting exam:', { 
+        roomCode, 
+        studentId: authUser._id, 
+        answersCount: finalAnswers.length,
+        violationsCount: violations.length,
+        violations: violations
+      });
 
-      // Submit via API
+      // Submit via API with violations data
       const response = await fetch(`/api/rooms/${roomCode}/submit`, {
         method: 'POST',
         headers: {
@@ -264,6 +401,7 @@ export function StudentExamInterface({ roomCode }: StudentExamInterfaceProps) {
         },
         body: JSON.stringify({
           answers: finalAnswers,
+          violations: violations,
         }),
       });
 
@@ -354,6 +492,38 @@ export function StudentExamInterface({ roomCode }: StudentExamInterfaceProps) {
 
   return (
     <div className="max-w-4xl mx-auto space-y-4">
+      {/* Warning Banner */}
+      {showWarning && (
+        <Card className="border-red-500 bg-red-50 dark:bg-red-950/20 animate-pulse">
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2 text-red-800 dark:text-red-400">
+              <AlertTriangle className="h-5 w-5" />
+              <span className="font-semibold">{warningMessage}</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Violations Summary (for student awareness) */}
+      {violations.length > 0 && (
+        <Card className="border-orange-300 bg-orange-50 dark:bg-orange-950/20">
+          <CardContent className="pt-4">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-orange-600 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-orange-800 dark:text-orange-400 mb-1">
+                  Cảnh báo vi phạm
+                </p>
+                <p className="text-xs text-orange-700 dark:text-orange-500">
+                  {violations.reduce((sum, v) => sum + v.count, 0)} vi phạm đã được ghi nhận. 
+                  Giáo viên có thể xem chi tiết các vi phạm này.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Header with timer and progress */}
       <Card>
         <CardHeader>

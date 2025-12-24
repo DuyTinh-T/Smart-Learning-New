@@ -5,6 +5,13 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth-context';
 import { 
@@ -17,7 +24,9 @@ import {
   Users,
   TrendingUp,
   BarChart3,
-  Download
+  Download,
+  AlertTriangle,
+  Eye
 } from 'lucide-react';
 
 interface Answer {
@@ -42,6 +51,7 @@ interface Submission {
   submittedAt: string;
   timeSpent: number;
   answers: Answer[];
+  violations?: {type: string, count: number}[];
 }
 
 interface Room {
@@ -71,6 +81,7 @@ export function RoomStatistics({ roomCode }: RoomStatisticsProps) {
   const [room, setRoom] = useState<Room | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedViolations, setSelectedViolations] = useState<{student: string, violations: {type: string, count: number}[]} | null>(null);
   const { user: authUser, token } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
@@ -330,6 +341,7 @@ export function RoomStatistics({ roomCode }: RoomStatisticsProps) {
                     <th className="text-left py-3 px-4 font-medium">Percentage</th>
                     <th className="text-left py-3 px-4 font-medium">Grade</th>
                     <th className="text-left py-3 px-4 font-medium">Time Spent</th>
+                    <th className="text-left py-3 px-4 font-medium">Violations</th>
                     <th className="text-left py-3 px-4 font-medium">Status</th>
                     <th className="text-left py-3 px-4 font-medium">Submitted</th>
                   </tr>
@@ -358,6 +370,27 @@ export function RoomStatistics({ roomCode }: RoomStatisticsProps) {
                       </td>
                       <td className="py-3 px-4">
                         {formatTime(submission.timeSpent)}
+                      </td>
+                      <td className="py-3 px-4">
+                        {submission.violations && submission.violations.length > 0 ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedViolations({
+                              student: submission.studentId.name,
+                              violations: submission.violations || []
+                            })}
+                            className="flex items-center gap-1"
+                          >
+                            <AlertTriangle className="h-4 w-4 text-orange-500" />
+                            {submission.violations.reduce((sum, v) => sum + v.count, 0)}
+                            <Eye className="h-3 w-3 ml-1" />
+                          </Button>
+                        ) : (
+                          <Badge variant="outline" className="text-green-600">
+                            Không vi phạm
+                          </Badge>
+                        )}
                       </td>
                       <td className="py-3 px-4">
                         {submission.status === 'submitted' ? (
@@ -439,6 +472,55 @@ export function RoomStatistics({ roomCode }: RoomStatisticsProps) {
           </CardContent>
         </Card>
       )}
+
+      {/* Violations Modal */}
+      <AlertDialog open={!!selectedViolations} onOpenChange={() => setSelectedViolations(null)}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-orange-500" />
+              Chi tiết vi phạm - {selectedViolations?.student}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Tổng cộng {selectedViolations?.violations.reduce((sum, v) => sum + v.count, 0) || 0} vi phạm
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="space-y-3 mt-4">
+            {selectedViolations?.violations.map((violation, index) => {
+              const violationLabels: {[key: string]: string} = {
+                'tab-switch': 'Chuyển tab',
+                'window-blur': 'Chuyển cửa sổ',
+                'copy-attempt': 'Thử copy',
+                'paste-attempt': 'Thử paste',
+                'cut-attempt': 'Thử cut',
+                'devtools-attempt': 'Thử mở DevTools',
+                'alt-tab': 'Sử dụng Alt+Tab',
+              };
+
+              return (
+                <div key={index} className="flex items-center justify-between p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-orange-600" />
+                    <span className="text-sm font-medium text-orange-800 dark:text-orange-400">
+                      {violationLabels[violation.type] || violation.type}
+                    </span>
+                  </div>
+                  <Badge variant="destructive">
+                    {violation.count} lần
+                  </Badge>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-6 flex justify-end">
+            <Button onClick={() => setSelectedViolations(null)}>
+              Đóng
+            </Button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

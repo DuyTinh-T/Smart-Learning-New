@@ -51,10 +51,27 @@ export function RoomCard({ room, onRoomUpdated, onRoomDeleted }: RoomCardProps) 
   const [isJoining, setIsJoining] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [showMonitor, setShowMonitor] = useState(false);
+  const [hasAutoJoined, setHasAutoJoined] = useState(false);
   const { socket, isConnected } = useSocket();
   const { joinRoom, startExam, getStatistics } = useRoomSocket();
   const { user: authUser } = useAuth();
   const { toast } = useToast();
+
+  // Auto-join room to receive updates
+  useEffect(() => {
+    if (!socket || !isConnected || !authUser || hasAutoJoined) return;
+
+    console.log('🔌 Auto-joining room for updates:', room.roomCode);
+    
+    socket.emit('join-room', {
+      roomCode: room.roomCode,
+      userId: authUser._id,
+      userName: authUser.name,
+      role: 'teacher',
+    });
+
+    setHasAutoJoined(true);
+  }, [socket, isConnected, authUser, room.roomCode, hasAutoJoined]);
 
   useEffect(() => {
     if (!socket) {
