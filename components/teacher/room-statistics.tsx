@@ -61,6 +61,7 @@ interface Room {
   roomCode: string;
   status: 'waiting' | 'running' | 'ended';
   duration: number;
+  publishAnalysis?: boolean;
   examQuizId?: {
     _id: string;
     title: string;
@@ -81,6 +82,7 @@ export function RoomStatistics({ roomCode }: RoomStatisticsProps) {
   const [room, setRoom] = useState<Room | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [publishing, setPublishing] = useState(false);
   const [selectedViolations, setSelectedViolations] = useState<{student: string, violations: {type: string, count: number}[]} | null>(null);
   const { user: authUser, token } = useAuth();
   const { toast } = useToast();
@@ -140,6 +142,46 @@ export function RoomStatistics({ roomCode }: RoomStatisticsProps) {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePublishToggle = async () => {
+    try {
+      setPublishing(true);
+      
+      const response = await fetch(`/api/rooms/${roomCode}/publish`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          publish: !room?.publishAnalysis
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update publish status');
+      }
+
+      const data = await response.json();
+      
+      setRoom(prev => prev ? { ...prev, publishAnalysis: data.room.publishAnalysis } : null);
+      
+      toast({
+        title: data.room.publishAnalysis ? 'Đã công bố kết quả' : 'Đã ẩn kết quả',
+        description: data.room.publishAnalysis 
+          ? 'Học sinh có thể xem phân tích câu hỏi' 
+          : 'Học sinh không thể xem phân tích câu hỏi',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Lỗi',
+        description: error.message || 'Không thể cập nhật trạng thái công bố',
+        variant: 'destructive',
+      });
+    } finally {
+      setPublishing(false);
     }
   };
 
@@ -244,10 +286,28 @@ export function RoomStatistics({ roomCode }: RoomStatisticsProps) {
             Room Code: {room.roomCode} • {room.examQuizId?.title || 'Exam'} • Status: {room.status}
           </p>
         </div>
-        <Button variant="outline" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
-        </Button>
+        <div className="flex gap-2">
+          {room.status === 'ended' && stats.totalSubmissions > 0 && (
+            <Button 
+              variant={room.publishAnalysis ? "destructive" : "default"}
+              onClick={handlePublishToggle}
+              disabled={publishing}
+            >
+              {publishing ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : room.publishAnalysis ? (
+                <XCircle className="h-4 w-4 mr-2" />
+              ) : (
+                <CheckCircle className="h-4 w-4 mr-2" />
+              )}
+              {room.publishAnalysis ? 'Ẩn kết quả' : 'Công bố kết quả'}
+            </Button>
+          )}
+          <Button variant="outline" onClick={() => router.back()}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+        </div>
       </div>
 
       {/* Overall Statistics */}

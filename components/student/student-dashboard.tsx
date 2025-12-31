@@ -473,6 +473,10 @@ export function StudentDashboard() {
         <TabsList className="bg-card">
           <TabsTrigger value="courses">Khóa Học Của Tôi</TabsTrigger>
           <TabsTrigger value="completed">Khóa Học Đã Học</TabsTrigger>
+          <TabsTrigger value="exam-results">
+            <FileText className="h-4 w-4 mr-2" />
+            Kết Quả Thi
+          </TabsTrigger>
           <TabsTrigger value="recommendations">
             <Sparkles className="h-4 w-4 mr-2" />
             Gợi Ý Từ AI
@@ -701,6 +705,35 @@ export function StudentDashboard() {
               </motion.div>
             ))
           )}
+        </TabsContent>
+
+        <TabsContent value="exam-results" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Kết Quả Thi Đã Công Bố
+              </CardTitle>
+              <CardDescription>
+                Xem lại kết quả và phân tích chi tiết các bài thi của bạn
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8">
+                <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Xem Kết Quả Thi</h3>
+                <p className="text-muted-foreground mb-4">
+                  Truy cập trang kết quả thi để xem chi tiết các bài thi đã được giáo viên công bố
+                </p>
+                <Link href="/student/exam-results">
+                  <Button>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Đi đến Kết Quả Thi
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="recommendations" className="space-y-4">
