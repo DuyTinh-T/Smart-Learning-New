@@ -64,11 +64,21 @@ export async function POST(
       return NextResponse.json({ error: 'No submission found. Please join the room first.' }, { status: 404 });
     }
 
-    console.log('📝 Submission status:', submission.status);
+    console.log('📝 Submission found:', {
+      id: submission._id,
+      status: submission.status,
+      hasStatus: submission.status !== undefined,
+      statusType: typeof submission.status
+    });
 
-    if (submission.status !== 'in-progress') {
+    // Check if already submitted (status === 'submitted')
+    if (submission.status === 'submitted') {
+      console.log('⚠️ Submission already submitted');
       return NextResponse.json({ error: 'Submission has already been completed' }, { status: 400 });
     }
+
+    // Allow submission if status is 'in-progress', undefined, or null
+    console.log('✅ Submission can be submitted');
 
     // Get exam quiz to calculate score
     const examQuiz = await ExamQuiz.findById(room.examQuizId);
