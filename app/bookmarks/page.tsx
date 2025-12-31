@@ -9,6 +9,8 @@ import { motion } from "framer-motion"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
+import { Header } from "@/components/header"
+import { Footer } from "@/components/footer"
 
 interface BookmarkedCourse {
   _id: string
@@ -119,6 +121,8 @@ export default function BookmarksPage() {
   }
 
   return (
+    <>
+        <Header />
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
       <section className="py-12">
         <div className="container mx-auto px-4">
@@ -243,5 +247,7 @@ export default function BookmarksPage() {
         </div>
       </section>
     </div>
+    <Footer/>
+    </>
   )
 }
