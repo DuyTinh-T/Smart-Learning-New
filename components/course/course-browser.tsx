@@ -99,19 +99,33 @@ export default function CourseBrowser() {
 
       const response = await courseApi.getAll(params)
       
-      if (response.success && response.data) {
-        const responseData = response.data as any
-        setCoursesData({
-          courses: responseData.data || responseData,
-          meta: responseData.meta || {
-            page: currentPage,
-            limit: 12,
-            totalCount: (responseData.data || responseData).length,
-            totalPages: 1,
-            hasNextPage: false,
-            hasPreviousPage: false
-          }
-        })
+      if (response.success) {
+        // API returns { success: true, data: [...courses], meta: {...} }
+        // Since apiCall returns the full response, we can access both data and meta at the same level
+        const courses = response.data as any
+        const meta = (response as any).meta
+        
+        if (courses && meta) {
+          setCoursesData({
+            courses: Array.isArray(courses) ? courses : [],
+            meta: meta
+          })
+        } else if (Array.isArray(courses)) {
+          // Fallback if meta is missing
+          setCoursesData({
+            courses: courses,
+            meta: {
+              page: currentPage,
+              limit: 12,
+              totalCount: courses.length,
+              totalPages: Math.ceil(courses.length / 12),
+              hasNextPage: false,
+              hasPreviousPage: false
+            }
+          })
+        } else {
+          throw new Error('Invalid response structure')
+        }
       } else {
         throw new Error(response.error || 'Failed to load courses')
       }
@@ -225,9 +239,9 @@ export default function CourseBrowser() {
       <section className="py-12 bg-gradient-to-r from-primary/5 via-accent/5 to-secondary/5">
         <div className="container mx-auto px-4">
           <div className="text-center max-w-3xl mx-auto">
-            <h1 className="text-4xl font-bold mb-4">Explore Courses</h1>
+            <h1 className="text-4xl font-bold mb-4">Khám phá các khóa học</h1>
             <p className="text-lg text-muted-foreground mb-8">
-              Discover thousands of courses from expert instructors and advance your skills.
+              Khám phá hàng ngàn khóa học từ các giảng viên chuyên gia và nâng cao kỹ năng của bạn.
             </p>
             
             {/* Search and Filters */}
@@ -383,23 +397,6 @@ export default function CourseBrowser() {
                                 View Details
                               </Link>
                             </Button>
-                            
-                            {user?.role === 'student' && (
-                              <Button 
-                                className="flex-1"
-                                onClick={() => handleEnroll(course._id)}
-                                disabled={enrollingCourses.has(course._id)}
-                              >
-                                {enrollingCourses.has(course._id) ? (
-                                  <>
-                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                    Enrolling...
-                                  </>
-                                ) : (
-                                  'Enroll Now'
-                                )}
-                              </Button>
-                            )}
                           </div>
                         </CardContent>
                       </Card>
@@ -420,12 +417,46 @@ export default function CourseBrowser() {
                   </Button>
                   
                   <div className="flex items-center gap-1">
-                    {Array.from({ length: Math.min(5, coursesData.meta.totalPages) }, (_, i) => {
-                      const page = i + 1
+                    {Array.from({ length: Math.min(7, coursesData.meta.totalPages) }, (_, i) => {
+                      const totalPages = coursesData.meta.totalPages
+                      const currentPage = coursesData.meta.page
+                      
+                      // Show first page, last page, current page and 2 pages around current
+                      let page: number
+                      if (totalPages <= 7) {
+                        page = i + 1
+                      } else {
+                        if (i === 0) {
+                          page = 1
+                        } else if (i === 6) {
+                          page = totalPages
+                        } else if (currentPage <= 3) {
+                          page = i + 1
+                        } else if (currentPage >= totalPages - 2) {
+                          page = totalPages - 6 + i
+                        } else {
+                          page = currentPage - 3 + i
+                        }
+                      }
+                      
+                      // Show ellipsis
+                      const showEllipsis = (
+                        (i === 1 && page > 2) || 
+                        (i === 5 && page < totalPages - 1)
+                      )
+                      
+                      if (showEllipsis) {
+                        return (
+                          <span key={`ellipsis-${i}`} className="px-2">
+                            ...
+                          </span>
+                        )
+                      }
+                      
                       return (
                         <Button
                           key={page}
-                          variant={page === coursesData.meta.page ? "default" : "outline"}
+                          variant={page === currentPage ? "default" : "outline"}
                           size="sm"
                           onClick={() => setCurrentPage(page)}
                           disabled={loading}
@@ -443,6 +474,10 @@ export default function CourseBrowser() {
                   >
                     Next
                   </Button>
+                  
+                  <span className="ml-4 text-sm text-muted-foreground">
+                    Page {coursesData.meta.page} of {coursesData.meta.totalPages}
+                  </span>
                 </div>
               )}
             </>
