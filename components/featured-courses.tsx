@@ -98,7 +98,7 @@ export function FeaturedCourses() {
         >
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl mb-4">Khóa học nổi bật</h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Explore our most popular courses and start your learning journey today
+            Khám phá các khóa học phổ biến nhất của chúng tôi và bắt đầu hành trình học tập của bạn ngay hôm nay!
           </p>
         </motion.div>
 
