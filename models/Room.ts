@@ -13,6 +13,7 @@ export interface IRoom extends Document {
   allowedStudents?: mongoose.Types.ObjectId[]; // optional: specific students allowed
   bannedStudents?: mongoose.Types.ObjectId[]; // students who are banned from this room
   maxStudents?: number; // optional: limit number of students
+  publishAnalysis?: boolean; // whether question analysis is published for students
   settings: {
     shuffleQuestions: boolean;
     shuffleOptions: boolean;
@@ -88,6 +89,10 @@ const RoomSchema = new Schema<IRoom>({
     type: Number,
     min: [1, 'Max students must be at least 1'],
     max: [500, 'Max students cannot be more than 500']
+  },
+  publishAnalysis: {
+    type: Boolean,
+    default: false
   },
   settings: {
     shuffleQuestions: {
