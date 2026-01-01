@@ -16,6 +16,7 @@ import {
   TrendingUp,
   Calendar
 } from 'lucide-react';
+import { Header } from '../header';
 
 interface Submission {
   _id: string;
@@ -113,15 +114,17 @@ export function PublishedResults() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 p-6">
+    <>
+    <Header />
+        <div className="max-w-7xl mx-auto space-y-6 p-6">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold flex items-center gap-2">
           <FileText className="h-8 w-8" />
-          Published Exam Results
+          Kết quả thi đã được công bố
         </h1>
         <p className="text-muted-foreground mt-2">
-          Review your published exam results and detailed question analysis
+          Xem lại kết quả thi đã được công bố và phân tích câu hỏi chi tiết
         </p>
       </div>
 
@@ -130,11 +133,11 @@ export function PublishedResults() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <FileText className="h-16 w-16 text-muted-foreground mb-4" />
-            <h2 className="text-xl font-semibold mb-2">No Published Results</h2>
+            <h2 className="text-xl font-semibold mb-2">Không có kết quả nào được công bố.</h2>
             <p className="text-muted-foreground text-center">
-              Your teachers haven't published any exam results yet.
+              Giáo viên của bạn chưa công bố kết quả thi nào.
               <br />
-              Check back later!
+              Vui lòng quay lại sau!
             </p>
           </CardContent>
         </Card>
@@ -209,7 +212,7 @@ export function PublishedResults() {
                     onClick={() => router.push(`/student/exam-results/${submission.roomId.roomCode}`)}
                   >
                     <Eye className="h-4 w-4 mr-2" />
-                    View My Answers
+                    Xem lại bài thi đã làm 
                   </Button>
                   <Button 
                     className="w-full"
@@ -217,7 +220,7 @@ export function PublishedResults() {
                     onClick={() => router.push(`/student/exam-results/${submission.roomId.roomCode}/overview`)}
                   >
                     <TrendingUp className="h-4 w-4 mr-2" />
-                    View Class Statistics
+                    Xem thống kê lớp học
                   </Button>
                 </div>
               </CardContent>
@@ -226,5 +229,6 @@ export function PublishedResults() {
         </div>
       )}
     </div>
+    </>
   );
 }

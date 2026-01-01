@@ -316,6 +316,32 @@ const UserSchema = new mongoose.Schema({
 
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
+// ExamQuiz Schema (for chat AI features)
+const ExamQuestionSchema = new mongoose.Schema({
+  text: String,
+  type: { type: String, enum: ['multiple-choice', 'essay'] },
+  points: Number,
+  options: [String],
+  correctIndex: Number,
+  maxWords: Number,
+  explanation: String,
+});
+
+const ExamQuizSchema = new mongoose.Schema({
+  title: String,
+  description: String,
+  questions: [ExamQuestionSchema],
+  timeLimit: Number,
+  passingScore: Number,
+  shuffleQuestions: Boolean,
+  shuffleOptions: Boolean,
+  showCorrectAnswers: Boolean,
+  isActive: Boolean,
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+}, { timestamps: true });
+
+const ExamQuiz = mongoose.models.ExamQuiz || mongoose.model('ExamQuiz', ExamQuizSchema);
+
 const SubmissionSchema = new mongoose.Schema({
   roomId: { type: mongoose.Schema.Types.ObjectId, ref: 'Room', required: true },
   studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -470,6 +496,99 @@ async function removeRoomParticipant(roomId, socketId) {
     console.error('Redis participant remove error:', error);
   }
 }
+
+// ==================== AI HELPER FUNCTIONS ====================
+
+// Detect negative sentiment
+function hasNegativeSentiment(text) {
+  const negativeWords = [
+    'không hiểu', 'khó', 'chịu', 'confused', 'difficult', 
+    'don\'t understand', 'can\'t', 'help', 'stuck', 'bế tắc',
+    'không biết', 'khó hiểu', 'rối', 'mơ hồ'
+  ];
+  
+  const lowerText = text.toLowerCase();
+  return negativeWords.some(word => lowerText.includes(word));
+}
+
+// Generate AI response using OpenAI
+async function generateAIResponse(question, recentMessages, latestMessage) {
+  try {
+    const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+    
+    if (!OPENAI_API_KEY || OPENAI_API_KEY.includes('\n')) {
+      console.log('⚠️ OpenAI API key not configured or invalid format');
+      console.log('⚠️ Please ensure OPENAI_API_KEY is on ONE line in .env file');
+      return null;
+    }
+
+    // Build context
+    const discussionContext = recentMessages
+      .reverse()
+      .map(m => `${m.user_name}: ${m.content}`)
+      .join('\n');
+
+    const prompt = `You are an AI teaching assistant helping students with an exam question.
+
+Question:
+"${question.text}"
+
+${question.correctIndex !== undefined ? `Correct answer index: ${question.correctIndex}` : ''}
+${question.explanation ? `Explanation: ${question.explanation}` : ''}
+
+Student discussion:
+${discussionContext}
+
+Latest message: "${latestMessage}"
+
+Task:
+- Give a helpful hint, NOT the final answer
+- Suggest related concepts or study materials
+- Be encouraging and supportive
+- Keep response concise (2-3 sentences)
+- Respond in the same language as the student's message
+
+Your response:`;
+
+    const fetch = (await import('node-fetch')).default;
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a helpful teaching assistant. Give hints, not answers.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        max_tokens: 150,
+        temperature: 0.7,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('OpenAI API error:', response.statusText);
+      return null;
+    }
+
+    const data = await response.json();
+    return data.choices[0]?.message?.content?.trim() || null;
+
+  } catch (error) {
+    console.error('Error generating AI response:', error);
+    return null;
+  }
+}
+
+// ==================== END AI HELPERS ====================
 
 async function handleExamEnd(roomId, roomCode, io) {
   try {
@@ -1014,6 +1133,216 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ==================== EXAM CHAT HANDLERS ====================
+  
+  // Join chat room
+  socket.on('join-chat', async (data) => {
+    try {
+      console.log('📥 Received join-chat event:', data);
+      const { roomCode, userId, userName } = data;
+      
+      socket.join(`chat:${roomCode}`);
+      socket.chatRoomCode = roomCode;
+      
+      console.log(`✅ User ${userName} joined chat room: ${roomCode}`);
+      
+      // Notify others
+      socket.to(`chat:${roomCode}`).emit('user-joined-chat', {
+        userName,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      console.error('❌ Error joining chat:', error);
+      socket.emit('error', { message: 'Failed to join chat' });
+    }
+  });
+
+  // Send chat message (with AI support)
+  socket.on('send-chat-message', async (data) => {
+    try {
+      console.log('📥 Received send-chat-message event:', data);
+      const { roomCode, userId, userName, userEmail, content, mentionedQuestionId, role } = data;
+      
+      console.log(`💬 Processing chat message from ${userName} in ${roomCode}`);
+      
+      // Check Supabase environment variables
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        console.error('❌ NEXT_PUBLIC_SUPABASE_URL not set in environment');
+        socket.emit('error', { message: 'Supabase not configured' });
+        return;
+      }
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        console.error('❌ SUPABASE_SERVICE_ROLE_KEY not set in environment');
+        socket.emit('error', { message: 'Supabase not configured' });
+        return;
+      }
+      
+      console.log('✅ Supabase config found');
+      
+      // Import Supabase dynamically (since we're in Node.js)
+      const { createClient } = require('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY,
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false
+          }
+        }
+      );
+      
+      console.log('✅ Supabase client created');
+      
+      console.log('💾 Saving message to Supabase...');
+      
+      // Save message to Supabase
+      const { data: savedMessage, error: saveError } = await supabase
+        .from('exam_chat_messages')
+        .insert([{
+          room_code: roomCode,
+          user_id: userId,
+          user_name: userName,
+          user_email: userEmail,
+          content: content,
+          mentioned_question_id: mentionedQuestionId || null,
+          role: role || 'STUDENT',
+        }])
+        .select()
+        .single();
+      
+      if (saveError) {
+        console.error('❌ Error saving message to Supabase:', saveError);
+        console.error('Error details:', JSON.stringify(saveError, null, 2));
+        socket.emit('error', { message: 'Failed to save message: ' + saveError.message });
+        return;
+      }
+      
+      console.log('✅ Message saved to Supabase:', savedMessage.id);
+      
+      // Broadcast message to room (including sender)
+      console.log(`📡 Broadcasting message to chat:${roomCode}`);
+      io.to(`chat:${roomCode}`).emit('chat-message', savedMessage);
+      console.log('✅ Message broadcasted');
+      
+      // Check if AI should respond
+      if (mentionedQuestionId) {
+        console.log(`🤖 Triggering AI for question: ${mentionedQuestionId}`);
+        
+        // Get recent messages about this question
+        const { data: recentMessages } = await supabase
+          .from('exam_chat_messages')
+          .select('*')
+          .eq('room_code', roomCode)
+          .eq('mentioned_question_id', mentionedQuestionId)
+          .neq('role', 'AI')
+          .order('created_at', { ascending: false })
+          .limit(5);
+        
+        // Check sentiment
+        const shouldTrigger = 
+          (recentMessages && recentMessages.length >= 1) ||
+          hasNegativeSentiment(content);
+        
+        if (shouldTrigger) {
+          // Get room and question details
+          const room = await Room.findByCode(roomCode).populate('examQuizId');
+          if (room && room.examQuizId) {
+            const question = room.examQuizId.questions.find(
+              q => q._id.toString() === mentionedQuestionId
+            );
+            
+            if (question) {
+              // Generate AI response
+              const aiContent = await generateAIResponse(
+                question,
+                recentMessages || [],
+                content
+              );
+              
+              if (aiContent) {
+                // Save AI message to Supabase
+                const { data: aiMessage } = await supabase
+                  .from('exam_chat_messages')
+                  .insert([{
+                    room_code: roomCode,
+                    user_id: room.teacherId.toString(),
+                    user_name: 'AI Assistant',
+                    user_email: 'ai@system.local',
+                    content: aiContent,
+                    mentioned_question_id: mentionedQuestionId,
+                    role: 'AI',
+                  }])
+                  .select()
+                  .single();
+                
+                if (aiMessage) {
+                  console.log(`✅ AI response sent for question ${mentionedQuestionId}`);
+                  
+                  // Broadcast AI message
+                  io.to(`chat:${roomCode}`).emit('chat-message', aiMessage);
+                }
+              }
+            }
+          }
+        }
+      }
+      
+    } catch (error) {
+      console.error('Error handling chat message:', error);
+      socket.emit('error', { message: 'Failed to send message' });
+    }
+  });
+
+  // Load chat history
+  socket.on('load-chat-history', async (data) => {
+    try {
+      console.log('📥 Received load-chat-history event:', data);
+      const { roomCode } = data;
+      
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        console.error('❌ Supabase not configured');
+        socket.emit('chat-history', { messages: [] });
+        return;
+      }
+      
+      const { createClient } = require('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY,
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false
+          }
+        }
+      );
+      
+      console.log(`📚 Loading chat history for room: ${roomCode}`);
+      
+      const { data: messages, error } = await supabase
+        .from('exam_chat_messages')
+        .select('*')
+        .eq('room_code', roomCode)
+        .order('created_at', { ascending: true });
+      
+      if (error) {
+        console.error('❌ Error loading chat history:', error);
+        throw error;
+      }
+      
+      console.log(`✅ Loaded ${messages?.length || 0} messages`);
+      socket.emit('chat-history', { messages: messages || [] });
+      
+    } catch (error) {
+      console.error('❌ Error loading chat history:', error);
+      socket.emit('error', { message: 'Failed to load chat history' });
+    }
+  });
+
+  // ==================== END CHAT HANDLERS ====================
+
   // Disconnect
   socket.on('disconnect', async () => {
     console.log(`👋 User disconnected: ${socket.id}`);
@@ -1036,6 +1365,11 @@ io.on('connection', (socket) => {
       } catch (error) {
         console.error('Error handling disconnect:', error);
       }
+    }
+    
+    // Leave chat room
+    if (socket.chatRoomCode) {
+      socket.leave(`chat:${socket.chatRoomCode}`);
     }
   });
 });

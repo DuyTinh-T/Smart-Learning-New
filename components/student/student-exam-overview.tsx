@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth-context';
+import { ExamChatDiscussion } from './exam-chat-discussion';
 import { 
   CheckCircle, 
   XCircle, 
@@ -16,6 +17,7 @@ import {
   Users,
   BarChart3
 } from 'lucide-react';
+import { Header } from '../header';
 
 interface Answer {
   questionId: string;
@@ -154,18 +156,23 @@ export function StudentExamOverview({ roomCode }: ExamOverviewProps) {
   const stats = calculateStats();
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 p-6">
+    <>
+    <Header />
+    <div className="flex h-screen overflow-hidden">
+      {/* Left side - Overview (2/3) */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-7xl mx-auto space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">{room.title}</h1>
           <p className="text-muted-foreground">
-            {room.examQuizId.title} • Class Statistics
+            {room.examQuizId.title} • Thống kê lớp học
           </p>
         </div>
         <Button variant="outline" onClick={() => router.push('/student/exam-results')}>
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
+          Quay lại
         </Button>
       </div>
 
@@ -220,9 +227,9 @@ export function StudentExamOverview({ roomCode }: ExamOverviewProps) {
       {/* Question Analysis */}
       <Card>
         <CardHeader>
-          <CardTitle>Question Analysis</CardTitle>
+          <CardTitle>Phân tích câu hỏi</CardTitle>
           <CardDescription>
-            Performance breakdown by question
+            Phân tích hiệu suất theo câu hỏi
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -273,6 +280,17 @@ export function StudentExamOverview({ roomCode }: ExamOverviewProps) {
           })}
         </CardContent>
       </Card>
+        </div>
+      </div>
+
+      {/* Right side - Chat Discussion (1/3) */}
+      <div className="w-1/3 border-l border-border">
+        <ExamChatDiscussion 
+          roomCode={roomCode}
+          questions={room.examQuizId.questions}
+        />
+      </div>
     </div>
+    </>
   );
 }
