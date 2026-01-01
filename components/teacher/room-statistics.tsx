@@ -288,22 +288,31 @@ export function RoomStatistics({ roomCode }: RoomStatisticsProps) {
         </div>
         <div className="flex gap-2">
           {room.status === 'ended' && stats.totalSubmissions > 0 && (
-            <Button 
-              variant={room.publishAnalysis ? "destructive" : "default"}
-              onClick={handlePublishToggle}
-              disabled={publishing}
-            >
-              {publishing ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : room.publishAnalysis ? (
-                <XCircle className="h-4 w-4 mr-2" />
-              ) : (
-                <CheckCircle className="h-4 w-4 mr-2" />
-              )}
-              {room.publishAnalysis ? 'Ẩn kết quả' : 'Công bố kết quả'}
-            </Button>
+            <>
+              <Button 
+                variant={room.publishAnalysis ? "destructive" : "default"}
+                onClick={handlePublishToggle}
+                disabled={publishing}
+              >
+                {publishing ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : room.publishAnalysis ? (
+                  <XCircle className="h-4 w-4 mr-2" />
+                ) : (
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                )}
+                {room.publishAnalysis ? 'Ẩn kết quả' : 'Công bố kết quả'}
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => router.push(`/teacher/rooms/${room.roomCode}/overview`)}
+              >
+                <TrendingUp className="h-4 w-4 mr-2" />
+                Xem thống kê lớp học
+              </Button>
+            </>
           )}
-          <Button variant="outline" onClick={() => router.back()}>
+          <Button variant="outline" onClick={() => router.push('/teacher/rooms')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
