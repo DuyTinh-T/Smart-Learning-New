@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/hooks/use-toast';
+import { filterContent, violationTracker } from '@/lib/content-filter';
 import io, { Socket } from 'socket.io-client';
 import { 
   Send, 
@@ -16,7 +17,8 @@ import {
   AlertCircle,
   Loader2,
   Wifi,
-  WifiOff
+  WifiOff,
+  ShieldAlert
 } from 'lucide-react';
 
 interface Question {
@@ -51,6 +53,8 @@ export function ExamChatDiscussion({ roomCode, questions }: ExamChatDiscussionPr
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [violationCount, setViolationCount] = useState(0);
   
   const { user, token } = useAuth();
   const { toast } = useToast();
@@ -153,6 +157,44 @@ export function ExamChatDiscussion({ roomCode, questions }: ExamChatDiscussionPr
         hasSocket: !!socketRef.current, 
         hasUser: !!user 
       });
+      return;
+    }
+
+    // Kiểm tra nếu user bị chặn
+    if (isBlocked || violationTracker.isBlocked(user._id)) {
+      toast({
+        title: '⛔ Bạn đã bị tạm khóa chat',
+        description: 'Bạn đã vi phạm quy định chat nhiều lần. Vui lòng chờ 5 phút.',
+        variant: 'destructive',
+      });
+      setIsBlocked(true);
+      return;
+    }
+
+    // Kiểm tra nội dung tin nhắn
+    const filterResult = filterContent(input.trim());
+    if (!filterResult.isClean) {
+      const newViolationCount = violationTracker.recordViolation(user._id);
+      setViolationCount(newViolationCount);
+
+      toast({
+        title: '⚠️ Nội dung không phù hợp',
+        description: `${filterResult.reason}. Vi phạm: ${newViolationCount}/3. ${
+          newViolationCount >= 3 
+            ? 'Bạn đã bị tạm khóa chat trong 5 phút.' 
+            : `Còn ${3 - newViolationCount} lần cảnh cáo.`
+        }`,
+        variant: 'destructive',
+      });
+
+      if (newViolationCount >= 3) {
+        setIsBlocked(true);
+        setTimeout(() => {
+          setIsBlocked(false);
+          setViolationCount(0);
+        }, 5 * 60 * 1000); // 5 phút
+      }
+
       return;
     }
 
@@ -262,7 +304,7 @@ export function ExamChatDiscussion({ roomCode, questions }: ExamChatDiscussionPr
   };
 
   return (
-    <div className="flex flex-col h-full bg-background mt-3">
+    <div className="flex flex-col h-[90%] bg-background mt-3">
       {/* Header */}
       <CardHeader className="border-b">
         <div className="flex items-center justify-between">
@@ -270,21 +312,40 @@ export function ExamChatDiscussion({ roomCode, questions }: ExamChatDiscussionPr
             <Bot className="h-5 w-5 text-blue-500" />
             <CardTitle className="text-lg">Thảo luận lớp học</CardTitle>
           </div>
-          {connected ? (
-            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
-              <Wifi className="h-3 w-3 mr-1" />
-              Live
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
-              <WifiOff className="h-3 w-3 mr-1" />
-              Offline
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {isBlocked && (
+              <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
+                <ShieldAlert className="h-3 w-3 mr-1" />
+                Đã khóa
+              </Badge>
+            )}
+            {violationCount > 0 && !isBlocked && (
+              <Badge variant="outline" className="bg-red-500 text-white-700 border-red-700 animate-pulse">
+                <ShieldAlert className="h-3 w-3 mr-1" />
+                Cảnh cáo: {violationCount}/3
+              </Badge>
+            )}
+            {connected ? (
+              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                <Wifi className="h-3 w-3 mr-1" />
+                Live
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
+                <WifiOff className="h-3 w-3 mr-1" />
+                Offline
+              </Badge>
+            )}
+          </div>
         </div>
         <p className="text-sm text-muted-foreground">
-          Sử dụng @Question để hỏi về các câu hỏi cụ thể.
+          Sử dụng @Question để hỏi về các câu hỏi cụ thể. 
         </p>
+          {violationCount > 0 && !isBlocked && (
+            <p className="text-sm animate-pulse font-medium text-red-500">
+              ⚠️ Không sử dụng ngôn từ không phù hợp.
+            </p>
+          )}
       </CardHeader>
 
       {/* Messages */}
@@ -402,22 +463,44 @@ export function ExamChatDiscussion({ roomCode, questions }: ExamChatDiscussionPr
 
       {/* Input */}
       <div className="p-4 border-t">
+        {isBlocked && (
+          <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+            <ShieldAlert className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-800">
+                Bạn đã bị tạm khóa chat
+              </p>
+              <p className="text-xs text-red-600 mt-1">
+                Bạn đã vi phạm quy định sử dụng chat nhiều lần. Chức năng chat sẽ được mở lại sau 5 phút.
+              </p>
+            </div>
+          </div>
+        )}
+        
         <div className="flex gap-2">
           <Input
             ref={inputRef}
             value={input}
             onChange={handleInputChange}
             onKeyPress={handleKeyPress}
-            placeholder="Type @ to mention a question..."
-            disabled={loading}
+            placeholder={
+              isBlocked 
+                ? "Bạn đã bị khóa chat..." 
+                : "Type @ to mention a question..."
+            }
+            disabled={loading || isBlocked}
             className="flex-1"
           />
           <Button 
             onClick={handleSendMessage} 
-            disabled={!input.trim() || loading}
+            disabled={!input.trim() || loading || isBlocked}
             size="icon"
           >
-            <Send className="h-4 w-4" />
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
           </Button>
         </div>
         
