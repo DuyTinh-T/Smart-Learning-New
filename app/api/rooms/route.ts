@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Room from '@/models/Room';
-import ExamQuiz from '@/models/ExamQuiz';
+import '@/models/ExamQuiz';
 import User from '@/models/User';
 import { verifyAuth } from '@/lib/auth';
 

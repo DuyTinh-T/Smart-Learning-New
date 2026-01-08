@@ -1,0 +1,187 @@
+🧠 1. Ý tưởng & Kiến trúc (simple & thực tế nhất)
+
+Bạn sẽ có 2 luồng AI chính:
+
+⭐ 1) AI Recommendation — Gợi ý khóa học / bài học cho học sinh
+
+Dựa trên:
+
+lịch sử học
+
+môn học yêu thích
+
+điểm số
+
+tiến độ học
+
+tags của khóa học
+→ Bạn gửi data này sang GPT và yêu cầu tạo danh sách gợi ý.
+
+⭐ 2) AI Lesson Creator — Tạo bài học + quiz tự động
+
+Teacher nhập:
+
+tên bài học
+
+mục tiêu
+
+cấp độ học sinh
+
+yêu cầu số câu
+
+→ GPT sẽ sinh ra:
+
+nội dung bài học
+
+câu hỏi quiz
+
+lý giải đúng/sai
+
+file JSON để bạn lưu vào DB
+
+🏗 2. Thiết kế API trong Next.js (dùng Route Handler /app/api)
+
+Bạn sẽ tạo 2 endpoints:
+
+/api/ai/recommend
+/api/ai/generate-lesson
+
+
+Mỗi endpoint sẽ gọi OpenAI API → trả dữ liệu JSON → frontend xử lý → lưu MongoDB.
+
+🔑 3. Code mẫu FULL tích hợp OpenAI API vào Next.js 14+
+Cài dependency
+npm i openai
+
+🧩 Tạo file ENV
+
+.env.local
+
+OPENAI_API_KEY="your_key_here"
+
+🚀 A. API TẠO GỢI Ý KHÓA HỌC
+
+File: app/api/ai/recommend/route.ts
+
+import OpenAI from "openai";
+
+export async function POST(req: Request) {
+  const body = await req.json();
+  const { studentProfile, learningHistory } = body;
+
+  const client = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+  });
+
+  const prompt = `
+    Bạn là hệ thống AI của nền tảng học tập.
+    Hãy dựa vào thông tin học sinh sau để gợi ý 5 khóa học phù hợp:
+
+    Hồ sơ học sinh:
+    ${JSON.stringify(studentProfile)}
+
+    Lịch sử học:
+    ${JSON.stringify(learningHistory)}
+
+    Output dạng JSON:
+    [
+      {
+        "title": "",
+        "reason": "",
+        "difficulty": "",
+        "tags": []
+      }
+    ]
+  `;
+
+  const response = await client.responses.create({
+    model: "gpt-4.1",
+    input: prompt
+  });
+
+  const result = response.output_text;
+
+  return Response.json({
+    recommendations: JSON.parse(result)
+  });
+}
+
+🚀 B. API TẠO BÀI HỌC & QUIZZES
+
+File: app/api/ai/generate-lesson/route.ts
+
+import OpenAI from "openai";
+
+export async function POST(req: Request) {
+  const { topic, level, numQuestions } = await req.json();
+
+  const client = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+  });
+
+  const prompt = `
+    Tạo một bài học theo yêu cầu bên dưới:
+
+    Chủ đề: ${topic}
+    Cấp độ: ${level}
+    Số câu hỏi quiz: ${numQuestions}
+
+    Output dạng JSON:
+    {
+      "lessonTitle": "",
+      "objective": "",
+      "content": "",
+      "quiz": [
+        {
+          "question": "",
+          "options": ["","", "", ""],
+          "answer": "",
+          "explanation": ""
+        }
+      ]
+    }
+  `;
+
+  const response = await client.responses.create({
+    model: "gpt-4.1",
+    input: prompt
+  });
+
+  const result = response.output_text;
+
+  return Response.json(JSON.parse(result));
+}
+
+🎨 Frontend dùng API (Next.js client component)
+
+Ví dụ gọi API tạo bài học:
+
+async function generateLesson() {
+  const res = await fetch("/api/ai/generate-lesson", {
+    method: "POST",
+    body: JSON.stringify({
+      topic: "Photosynthesis",
+      level: "Grade 8",
+      numQuestions: 5
+    })
+  });
+
+  const data = await res.json();
+  console.log("AI Lesson:", data);
+}
+
+📦 Lưu vào MongoDB
+
+Bạn chỉ cần lấy JSON AI trả về rồi insert:
+
+await Lessons.create(data);
+
+🔥 Bạn có thể mở rộng thêm:
+✔ AI tạo đề thi có nhiều cấp độ
+✔ AI đánh giá bài làm học sinh
+✔ AI chấm bài tự luận
+✔ AI phân tích điểm yếu của học sinh và đưa study roadmap
+✔ AI viết lại bài giảng cho các cấp độ khác nhau
+✔ AI tạo video script từ bài học
+
+→ Tất cả đều dùng chung OpenAI API phía trên.

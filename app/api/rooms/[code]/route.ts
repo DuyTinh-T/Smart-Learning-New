@@ -2,20 +2,39 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Room from '@/models/Room';
 import User from '@/models/User';
-import ExamQuiz from '@/models/ExamQuiz'; // Import ExamQuiz model to register it with Mongoose
+import '@/models/ExamQuiz'; // Import to ensure model is registered
 import { verifyToken } from '@/lib/auth';
 
 // Helper function to get user from request
 async function getUserFromRequest(request: NextRequest) {
-  const token = request.headers.get('authorization')?.replace('Bearer ', '');
-  if (!token) return null;
-  
-  const decoded = verifyToken(token);
-  if (!decoded) return null;
-  
-  await connectDB();
-  const user = await User.findById(decoded.userId);
-  return user;
+  try {
+    const token = request.headers.get('authorization')?.replace('Bearer ', '');
+    console.log('🔑 Token received:', token ? token.substring(0, 20) + '...' : 'null');
+    
+    if (!token) {
+      console.log('❌ No token in request');
+      return null;
+    }
+    
+    const decoded = verifyToken(token);
+    console.log('🔓 Token decoded:', decoded ? `userId: ${decoded.userId}` : 'null');
+    
+    if (!decoded) {
+      console.log('❌ Token verification failed');
+      return null;
+    }
+    
+    await connectDB();
+    console.log('✅ DB connected, finding user...');
+    
+    const user = await User.findById(decoded.userId);
+    console.log('👤 User found:', user ? `${user.name} (${user._id})` : 'null');
+    
+    return user;
+  } catch (error) {
+    console.error('❌ Error in getUserFromRequest:', error);
+    return null;
+  }
 }
 
 // GET /api/rooms/[code] - Get room by code
@@ -26,6 +45,8 @@ export async function GET(
   try {
     const { code } = await params;
     console.log('📨 GET /api/rooms/[code] - Code:', code);
+    console.log('📨 Request URL:', request.url);
+    console.log('📨 Request headers:', Object.fromEntries(request.headers.entries()));
     
     const user = await getUserFromRequest(request);
     
@@ -86,10 +107,12 @@ export async function GET(
     console.error('❌ Error fetching room:', error);
     // Log stack trace for better debugging
     if (error instanceof Error) {
+      console.error('Error message:', error.message);
       console.error('Stack:', error.stack);
     }
     return NextResponse.json({ 
       error: 'Internal Server Error',
+      message: error instanceof Error ? error.message : 'Unknown error',
       details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
     }, { status: 500 });
   }

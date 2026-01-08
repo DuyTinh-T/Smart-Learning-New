@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Room from '@/models/Room';
 import User from '@/models/User';
-import ExamQuiz from '@/models/ExamQuiz';
+import '@/models/ExamQuiz';
 import { verifyToken } from '@/lib/auth';
 
 export async function POST(
