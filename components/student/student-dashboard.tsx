@@ -336,7 +336,7 @@ export function StudentDashboard() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Vui lòng đăng nhập để xem bảng điều khiển</h2>
+          <h2 className="text-2xl font-bold mb-4">Vui lòng đăng nhập để xem Dashboard</h2>
         </div>
       </div>
     )
@@ -346,8 +346,8 @@ export function StudentDashboard() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Bảng Điều Khiển Học Sinh</h2>
-          <p className="text-muted-foreground">Bảng điều khiển này chỉ dành cho học sinh.</p>
+          <h2 className="text-2xl font-bold mb-4">Dashboard Học Sinh</h2>
+          <p className="text-muted-foreground">Dashboard này chỉ dành cho học sinh.</p>
         </div>
       </div>
     )

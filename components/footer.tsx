@@ -38,16 +38,6 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/student/dashboard" className="text-muted-foreground hover:text-primary transition-colors">
-                  Bảng điều khiển học viên
-                </Link>
-              </li>
-              <li>
-                <Link href="/teacher/dashboard" className="text-muted-foreground hover:text-primary transition-colors">
-                  Bảng điều khiển giảng viên
-                </Link>
-              </li>
-              <li>
                 <Link href="/pricing" className="text-muted-foreground hover:text-primary transition-colors">
                   Bảng giá
                 </Link>
