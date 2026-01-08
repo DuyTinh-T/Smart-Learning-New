@@ -91,7 +91,7 @@ export function Header() {
                       className="cursor-pointer"
                     >
                       <BookOpen className="mr-2 h-4 w-4" />
-                      Bảng điều khiển
+                      Dashboard
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
@@ -178,7 +178,7 @@ export function Header() {
                                 : "/student/dashboard"
                           }
                         >
-                          Bảng điều khiển
+                          Dashboard
                         </Link>
                       </Button>
                       <Button

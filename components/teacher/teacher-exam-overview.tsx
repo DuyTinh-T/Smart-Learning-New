@@ -147,7 +147,7 @@ export function TeacherExamOverview({ roomCode }: ExamOverviewProps) {
         </p>
         <Button onClick={() => router.push('/teacher/dashboard')}>
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Quay lại Bảng điều khiển
+          Quay lại Dashboard
         </Button>
       </div>
     );

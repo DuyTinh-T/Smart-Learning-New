@@ -30,7 +30,7 @@ function Command({
 }
 
 function CommandDialog({
-  title = 'Bảng điều khiển',
+  title = 'Dashboard',
   description = 'Tìm kiếm lệnh để thực hiện...',
   children,
   className,
