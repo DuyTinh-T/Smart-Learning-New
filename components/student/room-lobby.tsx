@@ -318,9 +318,9 @@ export function StudentRoomLobby({ roomCode }: StudentRoomLobbyProps) {
               <Users className="h-8 w-8 text-blue-500" />
             </div>
             <div>
-              <h3 className="text-lg font-medium">Waiting for exam to start</h3>
+              <h3 className="text-lg font-medium">Đang chờ bài thi bắt đầu</h3>
               <p className="text-muted-foreground">
-                Your teacher will start the exam when all students have joined
+                Giáo viên của bạn sẽ bắt đầu bài thi khi tất cả học sinh đã tham gia
               </p>
             </div>
           </div>
@@ -389,15 +389,15 @@ export function StudentRoomLobby({ roomCode }: StudentRoomLobbyProps) {
       {/* Instructions */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Instructions</CardTitle>
+          <CardTitle className="text-lg">Hướng dẫn</CardTitle>
         </CardHeader>
         <CardContent>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>• Stay on this page until the exam starts</li>
-            <li>• Make sure you have a stable internet connection</li>
-            <li>• The exam will start automatically when your teacher begins it</li>
-            <li>• You'll have {room.duration} minutes to complete {room.examQuizId?.questions?.length || 0} questions</li>
-            <li>• Your answers will be saved automatically</li>
+            <li>• Hãy ở lại trang này cho đến khi bài kiểm tra bắt đầu</li>
+            <li>• Hãy đảm bảo bạn có kết nối internet ổn định</li>
+            <li>• Bài kiểm tra sẽ tự động bắt đầu khi giáo viên của bạn bắt đầu</li>
+            <li>• Bạn sẽ có {room.duration} phút để hoàn thành {room.examQuizId?.questions?.length || 0} câu hỏi</li>
+            <li>• Câu trả lời của bạn sẽ được lưu tự động</li>
           </ul>
         </CardContent>
       </Card>

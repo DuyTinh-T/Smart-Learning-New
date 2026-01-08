@@ -244,37 +244,37 @@ export function StudentExamResults({ roomCode }: StudentExamResultsProps) {
           <div className="flex justify-center mb-4">
             <Award className={`h-16 w-16 ${getGradeColor(submission.percentage)}`} />
           </div>
-          <CardTitle className="text-3xl">Exam Completed!</CardTitle>
+          <CardTitle className="text-3xl">Bài thi đã hoàn thành!</CardTitle>
           <CardDescription>
-            Here are your results
+            Đây là kết quả của bạn
           </CardDescription>
         </CardHeader>
 
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-muted rounded-lg">
-              <p className="text-sm text-muted-foreground mb-1">Score</p>
+              <p className="text-sm text-muted-foreground mb-1">Điểm</p>
               <p className="text-2xl font-bold">
                 {submission.score}/{submission.totalPoints}
               </p>
             </div>
 
             <div className="text-center p-4 bg-muted rounded-lg">
-              <p className="text-sm text-muted-foreground mb-1">Percentage</p>
+              <p className="text-sm text-muted-foreground mb-1">Phần trăm</p>
               <p className={`text-2xl font-bold ${getGradeColor(submission.percentage)}`}>
                 {submission.percentage}%
               </p>
             </div>
 
             <div className="text-center p-4 bg-muted rounded-lg">
-              <p className="text-sm text-muted-foreground mb-1">Grade</p>
+              <p className="text-sm text-muted-foreground mb-1">Xếp loại</p>
               <p className={`text-2xl font-bold ${getGradeColor(submission.percentage)}`}>
                 {getGrade(submission.percentage)}
               </p>
             </div>
 
             <div className="text-center p-4 bg-muted rounded-lg">
-              <p className="text-sm text-muted-foreground mb-1">Time Spent</p>
+              <p className="text-sm text-muted-foreground mb-1">Thời gian</p>
               <p className="text-2xl font-bold">
                 {formatTime(submission.timeSpent)}
               </p>
@@ -284,7 +284,7 @@ export function StudentExamResults({ roomCode }: StudentExamResultsProps) {
           <div className="mt-6 flex items-center justify-center gap-2">
             <Clock className="h-4 w-4 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
-              Submitted on {new Date(submission.submittedAt).toLocaleString()}
+              Nộp bài vào {new Date(submission.submittedAt).toLocaleString()}
             </p>
           </div>
         </CardContent>
@@ -338,9 +338,9 @@ export function StudentExamResults({ roomCode }: StudentExamResultsProps) {
       {/* Answer Review */}
       <Card>
         <CardHeader>
-          <CardTitle>Answer Review</CardTitle>
+          <CardTitle>Đánh giá câu trả lời</CardTitle>
           <CardDescription>
-            {submission.answers.filter(a => a.isCorrect).length} out of {submission.answers.length} correct
+            {submission.answers.filter(a => a.isCorrect).length} trong số {submission.answers.length} đúng
           </CardDescription>
         </CardHeader>
 
@@ -362,12 +362,12 @@ export function StudentExamResults({ roomCode }: StudentExamResultsProps) {
                   <span className="font-medium">Question {index + 1}</span>
                 </div>
                 <Badge variant={answer.isCorrect ? 'default' : 'destructive'}>
-                  {answer.points} / {answer.points} points
+                  {answer.points} / {answer.points} điểm
                 </Badge>
               </div>
               
               <p className="text-sm text-muted-foreground">
-                Time taken: {formatTime(answer.timeTaken)}
+                Thời gian: {formatTime(answer.timeTaken)}
               </p>
             </div>
           ))}
