@@ -1,15 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
-import Room from '@/models/Room';
-import Submission from '@/models/Submission';
+import { verifyToken } from '@/lib/auth';
+// Import models in dependency order to ensure all models are registered
 import User from '@/models/User';
 import ExamQuiz from '@/models/ExamQuiz';
-import { verifyToken } from '@/lib/auth';
+import Room from '@/models/Room';
+import Submission from '@/models/Submission';
 
 // Get list of published exam results for a student
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
+    
+    // Ensure all models are registered before querying
+    if (!User || !ExamQuiz || !Room || !Submission) {
+      throw new Error('Models not properly loaded');
+    }
 
     // Get authorization header
     const authHeader = request.headers.get('authorization');
@@ -49,16 +55,24 @@ export async function GET(request: NextRequest) {
 
     console.log('📚 Fetching published results for student:', user._id);
 
+    // Ensure Room model is properly registered before populate
+    // This is needed because populate tries to access Room model
+    const RoomModel = Room;
+    if (!RoomModel) {
+      throw new Error('Room model not loaded');
+    }
+
     // Find all submissions by this student
     const submissions = await Submission.find({
       studentId: user._id,
       status: 'submitted'
     }).populate({
       path: 'roomId',
+      model: 'Room',
       match: { publishAnalysis: true },
       populate: [
-        { path: 'examQuizId' },
-        { path: 'teacherId', select: 'name email' }
+        { path: 'examQuizId', model: 'ExamQuiz' },
+        { path: 'teacherId', model: 'User', select: 'name email' }
       ]
     }).sort({ submittedAt: -1 });
 
